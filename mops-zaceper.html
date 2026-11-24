@@ -1,0 +1,3023 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Мопс-Зацепер" />
+  <meta name="format-detection" content="telephone=no" />
+  <title>Мопс-Зацепер: Вокзальный Рейс</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #10151c;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      color: #f4f7fb;
+      touch-action: none;
+    }
+    #gameCanvas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      z-index: 1;
+      background: #1a242f;
+    }
+    #uiLayer {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      pointer-events: none;
+    }
+    .btn {
+      pointer-events: auto;
+      touch-action: manipulation;
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      border-radius: 10px;
+      background: rgba(24, 33, 45, 0.88);
+      color: #f8fafc;
+      font-weight: 700;
+      font-size: 12px;
+      line-height: 1.1;
+      padding: 7px 10px;
+      cursor: pointer;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
+      transition: transform 0.08s ease, background 0.12s ease, border-color 0.12s ease;
+    }
+    .btn:active {
+      transform: scale(0.95);
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #f59e0b, #ea580c);
+      border-color: rgba(254, 240, 138, 0.65);
+      color: #111827;
+    }
+    .btn-accent {
+      background: linear-gradient(135deg, #0ea5e9, #2563eb);
+      border-color: rgba(186, 230, 253, 0.65);
+      color: #ffffff;
+    }
+    .btn-danger {
+      background: linear-gradient(135deg, #ef4444, #b91c1c);
+      border-color: rgba(254, 202, 202, 0.6);
+      color: #ffffff;
+    }
+    .btn-warn {
+      background: linear-gradient(135deg, #eab308, #ca8a04);
+      border-color: rgba(254, 249, 195, 0.7);
+      color: #111827;
+    }
+    .btn-stance.active {
+      outline: 2px solid #38bdf8;
+      background: rgba(14, 165, 233, 0.35);
+    }
+
+    /* Clear HUD widgets top-left */
+    #hudPanel {
+      position: fixed;
+      top: 8px;
+      left: 8px;
+      width: 168px;
+      padding: 7px 8px;
+      border-radius: 11px;
+      background: rgba(10, 15, 23, 0.92);
+      border: 1px solid rgba(251, 191, 36, 0.35);
+      backdrop-filter: blur(6px);
+      font-size: 11px;
+      line-height: 1.25;
+      z-index: 25;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+    }
+    .hud-top-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 800;
+      margin-bottom: 6px;
+      font-size: 12px;
+    }
+    .hud-coins {
+      color: #fbbf24;
+    }
+    .hud-thirst {
+      color: #38bdf8;
+    }
+    .meter-row {
+      margin-bottom: 5px;
+    }
+    .meter-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      font-weight: 700;
+      color: #e2e8f0;
+      margin-bottom: 2px;
+    }
+    .meter {
+      height: 7px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.16);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      overflow: hidden;
+    }
+    .meter-fill {
+      height: 100%;
+      width: 100%;
+      transition: width 0.08s linear;
+    }
+    .meter-stamina { background: linear-gradient(90deg, #16a34a, #4ade80); }
+    .meter-grip { background: linear-gradient(90deg, #d97706, #fbbf24); }
+    .meter-thirst { background: linear-gradient(90deg, #0284c7, #38bdf8); }
+    .hud-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      font-weight: 700;
+      color: #fde68a;
+      margin-top: 3px;
+    }
+
+    /* Top-center compact train/status pill */
+    #topStatus {
+      position: fixed;
+      top: 8px;
+      left: 184px;
+      right: 215px;
+      padding: 6px 10px;
+      border-radius: 10px;
+      background: rgba(13, 19, 28, 0.88);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      font-size: 11px;
+      font-weight: 700;
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      z-index: 15;
+    }
+
+    /* Top-right compact 2-row utility grid so no button is ever clipped or overlapped */
+    #topRightBar {
+      position: fixed;
+      top: 8px;
+      right: 8px;
+      width: 198px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 4px;
+      z-index: 26;
+    }
+    #topRightBar .btn {
+      padding: 5px 7px;
+      font-size: 10.5px;
+      white-space: nowrap;
+      flex: 0 0 auto;
+    }
+
+    /* Bottom-left virtual joystick */
+    #stickZone {
+      position: fixed;
+      left: 14px;
+      bottom: 14px;
+      width: 104px;
+      height: 104px;
+      border-radius: 50%;
+      background: rgba(15, 23, 42, 0.52);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      pointer-events: auto;
+      touch-action: none;
+      z-index: 20;
+    }
+    #stickKnob {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 40px;
+      height: 40px;
+      margin-left: -20px;
+      margin-top: -20px;
+      border-radius: 50%;
+      background: rgba(245, 158, 11, 0.88);
+      border: 2px solid #fef3c7;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+      pointer-events: none;
+    }
+
+    /* Bottom-center toast/prompt strip */
+    #toastBanner {
+      position: fixed;
+      left: 50%;
+      bottom: 12px;
+      transform: translateX(-50%);
+      max-width: calc(100vw - 280px);
+      padding: 6px 12px;
+      border-radius: 9px;
+      background: rgba(15, 23, 42, 0.88);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      font-size: 11px;
+      font-weight: 600;
+      color: #f1f5f9;
+      text-align: center;
+      z-index: 16;
+    }
+
+    /* Bottom-right action clusters without overlap */
+    #rightControls {
+      position: fixed;
+      right: 10px;
+      bottom: 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 6px;
+      z-index: 20;
+    }
+    .ctrl-row {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+    .ctrl-row .btn {
+      padding: 7px 9px;
+      font-size: 11px;
+    }
+    #btnPrimaryAction {
+      padding: 9px 13px;
+      font-size: 12px;
+    }
+
+    /* QTE hold prompt badge above right controls */
+    #qteBox {
+      display: none;
+      position: fixed;
+      right: 14px;
+      bottom: 132px;
+      padding: 7px 11px;
+      border-radius: 10px;
+      background: rgba(127, 29, 29, 0.92);
+      border: 1px solid #fca5a5;
+      font-size: 11px;
+      font-weight: 800;
+      color: #fff;
+      z-index: 22;
+      pointer-events: auto;
+      cursor: pointer;
+    }
+
+    /* Modal dialogs (Phone, Shop, Gear, Detector) */
+    .modal-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(5, 9, 15, 0.72);
+      z-index: 50;
+      align-items: center;
+      justify-content: center;
+      padding: 12px;
+      pointer-events: auto;
+    }
+    .modal-backdrop.open {
+      display: flex;
+    }
+    .modal-card {
+      width: 100%;
+      max-width: 410px;
+      max-height: 86vh;
+      overflow-y: auto;
+      background: #141d29;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 14px;
+      padding: 13px;
+      box-shadow: 0 14px 36px rgba(0, 0, 0, 0.65);
+    }
+    .modal-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    }
+    .modal-title {
+      font-size: 14px;
+      font-weight: 800;
+    }
+    .item-card {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      margin-bottom: 7px;
+      font-size: 11px;
+    }
+    .item-name {
+      font-weight: 800;
+      color: #f8fafc;
+      margin-bottom: 2px;
+    }
+    .item-desc {
+      color: #cbd5e1;
+      font-size: 10px;
+    }
+
+    /* Compact start overlay */
+    #startOverlay {
+      position: fixed;
+      inset: 0;
+      z-index: 90;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(9, 13, 20, 0.52);
+      pointer-events: auto;
+      padding: 12px;
+    }
+    #startOverlay.hidden {
+      display: none !important;
+      pointer-events: none !important;
+    }
+    #startBox {
+      width: 100%;
+      max-width: 310px;
+      background: rgba(17, 25, 37, 0.94);
+      border: 1px solid rgba(251, 191, 36, 0.45);
+      border-radius: 14px;
+      padding: 14px;
+      text-align: center;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);
+    }
+    #startBox h1 {
+      margin: 0 0 6px;
+      font-size: 16px;
+      color: #fbbf24;
+    }
+    #startBox p {
+      margin: 0 0 11px;
+      font-size: 11px;
+      color: #cbd5e1;
+      line-height: 1.35;
+    }
+    #btnStartStation {
+      width: 100%;
+      padding: 10px 14px;
+      font-size: 13px;
+    }
+
+    @media (max-width: 680px) {
+      #hudPanel {
+        width: 138px;
+        padding: 6px 7px;
+        font-size: 10px;
+      }
+      #topRightBar {
+        width: 176px;
+        gap: 3px;
+      }
+      #topRightBar .btn {
+        padding: 4px 6px;
+        font-size: 9.5px;
+      }
+      #topStatus {
+        left: 152px;
+        right: 184px;
+        font-size: 9.5px;
+        padding: 5px 6px;
+      }
+      #stickZone {
+        width: 92px;
+        height: 92px;
+        left: 10px;
+        bottom: 10px;
+      }
+      #stickKnob {
+        width: 34px;
+        height: 34px;
+        margin-left: -17px;
+        margin-top: -17px;
+      }
+      #toastBanner {
+        bottom: 112px;
+        max-width: calc(100vw - 24px);
+        font-size: 10px;
+      }
+      .ctrl-row .btn {
+        padding: 6px 7px;
+        font-size: 10px;
+      }
+    }
+    html, body {
+      overscroll-behavior: none;
+      -webkit-overflow-scrolling: touch;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #hudPanel {
+      top: calc(8px + env(safe-area-inset-top, 0px));
+      left: calc(8px + env(safe-area-inset-left, 0px));
+    }
+    #topStatus {
+      top: calc(8px + env(safe-area-inset-top, 0px));
+    }
+    #topRightBar {
+      top: calc(8px + env(safe-area-inset-top, 0px));
+      right: calc(8px + env(safe-area-inset-right, 0px));
+    }
+    #stickZone {
+      left: calc(14px + env(safe-area-inset-left, 0px));
+      bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+    }
+    #rightControls {
+      right: calc(10px + env(safe-area-inset-right, 0px));
+      bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+    }
+    @media (max-width: 680px) {
+      #stickZone {
+        left: calc(10px + env(safe-area-inset-left, 0px));
+        bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+      }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+
+  <div id="uiLayer">
+    <div id="hudPanel">
+      <div class="hud-top-row">
+        <span class="hud-coins" id="hudCoins">🪙 450</span>
+        <span class="hud-thirst" id="hudThirstText">🥤 1 • 🦴 1</span>
+      </div>
+      <div class="meter-row">
+        <div class="meter-label"><span>🏃 Силы</span><span id="valStamina">100%</span></div>
+        <div class="meter"><div class="meter-fill meter-stamina" id="barStamina"></div></div>
+      </div>
+      <div class="meter-row">
+        <div class="meter-label"><span>✊ Хват</span><span id="valGrip">100%</span></div>
+        <div class="meter"><div class="meter-fill meter-grip" id="barGrip"></div></div>
+      </div>
+      <div class="meter-row">
+        <div class="meter-label"><span>💧 Жажда</span><span id="valThirst">15%</span></div>
+        <div class="meter"><div class="meter-fill meter-thirst" id="barThirst"></div></div>
+      </div>
+      <div class="hud-meta">
+        <span id="hudCrew">Команда: 1/3</span>
+        <span id="hudSpeed">0 км/ч</span>
+      </div>
+    </div>
+
+    <div id="topStatus">Вокзал • Ожидание подачи состава</div>
+
+    <div id="topRightBar">
+      <button class="btn" id="btnStation" type="button" onclick="cycleStation()">🚉 Станция</button>
+      <button class="btn btn-accent" id="btnPhone" type="button" onclick="openModal('phone')">📱 Телефон</button>
+      <button class="btn" id="btnDetector" type="button" onclick="openModal('detector')">📡 Детектор</button>
+      <button class="btn" id="btnGear" type="button" onclick="openModal('gear')">🎒 Снаряга</button>
+      <button class="btn" id="btnSound" type="button" onclick="toggleSound()">🔊</button>
+    </div>
+
+    <div id="stickZone">
+      <div id="stickKnob"></div>
+    </div>
+
+    <div id="toastBanner">Позвони Таксе и Аките или подай состав на перрон.</div>
+
+    <div id="qteBox" onclick="triggerGripHold()">✊ ДЕРЖАТЬ ХВАТ! (J / Space)</div>
+
+    <div id="rightControls">
+      <div class="ctrl-row" id="stationRow">
+        <button class="btn btn-primary" id="btnSummonTrain" type="button" onclick="summonTrain()">🚆 Подать состав</button>
+        <button class="btn" id="btnSprint" type="button" onpointerdown="setSprint(true)" onpointerup="setSprint(false)" onpointerleave="setSprint(false)">🏃 Бег</button>
+      </div>
+      <div class="ctrl-row" id="trainRow" style="display:none;">
+        <button class="btn btn-stance active" id="btnStand" type="button" onclick="setStance('stand')">🧍 Стоя</button>
+        <button class="btn btn-stance" id="btnCrouch" type="button" onclick="setStance('crouch')">蹲 Корточки</button>
+        <button class="btn btn-stance" id="btnProne" type="button" onclick="setStance('prone')">🛌 Лечь</button>
+      </div>
+      <div class="ctrl-row" id="extraTrainRow" style="display:none;">
+        <button class="btn btn-warn" id="btnTether" type="button" onclick="tetherFriends()">🪢 Трос</button>
+        <button class="btn btn-danger" id="btnPantograph" type="button" onclick="shakePantograph()">⚡ Шатать</button>
+        <button class="btn btn-accent" id="btnGrind" type="button" onclick="startRailGrind()">🛹 Прокат</button>
+        <button class="btn" id="btnWhistle" type="button" onclick="callCrewWhistle()">📣 Сбор</button>
+      </div>
+      <div class="ctrl-row">
+        <button class="btn btn-primary" id="btnPrimaryAction" type="button" onclick="handlePrimaryAction()">⚡ Действие</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Phone Modal -->
+  <div class="modal-backdrop" id="modalPhone" onclick="backdropClose(event, 'phone')">
+    <div class="modal-card">
+      <div class="modal-head">
+        <span class="modal-title">📱 Связь с друзьями</span>
+        <button class="btn" type="button" onclick="closeModal('phone')">✕</button>
+      </div>
+      <div id="phoneBody"></div>
+    </div>
+  </div>
+
+  <!-- Shop Modal (Labrador) -->
+  <div class="modal-backdrop" id="modalShop" onclick="backdropClose(event, 'shop')">
+    <div class="modal-card">
+      <div class="modal-head">
+        <span class="modal-title">🛒 Лавка Лабрадора</span>
+        <button class="btn" type="button" onclick="closeModal('shop')">✕</button>
+      </div>
+      <div id="shopBody"></div>
+    </div>
+  </div>
+
+  <!-- Gear Modal -->
+  <div class="modal-backdrop" id="modalGear" onclick="backdropClose(event, 'gear')">
+    <div class="modal-card">
+      <div class="modal-head">
+        <span class="modal-title">🎒 Снаряжение команды</span>
+        <button class="btn" type="button" onclick="closeModal('gear')">✕</button>
+      </div>
+      <div id="gearBody"></div>
+    </div>
+  </div>
+
+  <!-- Detector Modal -->
+  <div class="modal-backdrop" id="modalDetector" onclick="backdropClose(event, 'detector')">
+    <div class="modal-card">
+      <div class="modal-head">
+        <span class="modal-title">📡 Детектор скорости</span>
+        <button class="btn" type="button" onclick="closeModal('detector')">✕</button>
+      </div>
+      <div id="detectorBody"></div>
+    </div>
+  </div>
+
+  <!-- Compact Start Overlay -->
+  <div id="startOverlay" onclick="handleStartOverlayClick(event)">
+    <div id="startBox" onclick="event.stopPropagation()">
+      <h1>🐾 Мопс-Зацепер</h1>
+      <p>Зови Таксу и Акиту, закупайся у Лабрадора, держи хват на разгоне и не слети с состава.</p>
+      <button class="btn btn-primary" id="btnStartStation" type="button" onclick="startGameNow(event)" ontouchstart="startGameNow(event)">НА ВОКЗАЛ</button>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const canvas = document.getElementById("gameCanvas");
+      const ctx = canvas.getContext("2d");
+
+      // WebAudio procedural sound engine
+      let audioCtx = null;
+      let soundEnabled = true;
+
+      function ensureAudio() {
+        if (!soundEnabled) return null;
+        try {
+          if (!audioCtx) {
+            const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+            if (AudioContextClass) audioCtx = new AudioContextClass();
+          }
+          if (audioCtx && audioCtx.state === "suspended") {
+            audioCtx.resume().catch(() => {});
+          }
+          return audioCtx;
+        } catch (e) {
+          return null;
+        }
+      }
+
+      function playTone(freq, duration = 0.09, type = "triangle", gainVal = 0.06) {
+        const ac = ensureAudio();
+        if (!ac) return;
+        try {
+          const osc = ac.createOscillator();
+          const gain = ac.createGain();
+          osc.type = type;
+          osc.frequency.setValueAtTime(freq, ac.currentTime);
+          gain.gain.setValueAtTime(gainVal, ac.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + duration);
+          osc.connect(gain);
+          gain.connect(ac.destination);
+          osc.start();
+          osc.stop(ac.currentTime + duration);
+        } catch (e) {}
+      }
+
+      ["touchstart", "touchend", "pointerdown", "click"].forEach((evName) => {
+        document.addEventListener(evName, () => {
+          ensureAudio();
+        }, { passive: true });
+      });
+
+      window.toggleSound = function () {
+        soundEnabled = !soundEnabled;
+        document.getElementById("btnSound").textContent = soundEnabled ? "🔊" : "🔇";
+        if (soundEnabled) playTone(520, 0.08);
+      };
+
+      // World & Game State
+      const WORLD_W = 1900;
+      const WORLD_H = 1120;
+      const PLATFORM_TOP = 190;
+      const PLATFORM_BOT = 330;
+      const TRACK_CENTER_Y = 475;
+      const SOUTH_PLATFORM_Y = 625;
+
+      const SHOP_ZONE = { x: 255, y: 120, w: 190, h: 85 };
+      const BENCH_ZONE = { x: 640, y: 230, w: 110, h: 48 };
+
+      const TRAIN_TYPES = {
+        cargo: {
+          id: "cargo",
+          name: "Грузовой поезд",
+          maxSpeed: 88,
+          accel: 12,
+          stopTime: 5.5,
+          carCount: 5,
+          carLen: 190,
+          hasPantograph: false,
+          color: "#7c2d12",
+          accent: "#f59e0b"
+        },
+        electric: {
+          id: "electric",
+          name: "Электричка",
+          maxSpeed: 125,
+          accel: 17,
+          stopTime: 5.0,
+          carCount: 5,
+          carLen: 185,
+          hasPantograph: true,
+          color: "#1d4ed8",
+          accent: "#38bdf8"
+        },
+        locomotive: {
+          id: "locomotive",
+          name: "Тепловоз",
+          maxSpeed: 152,
+          accel: 21,
+          stopTime: 4.5,
+          carCount: 5,
+          carLen: 195,
+          hasPantograph: false,
+          color: "#15803d",
+          accent: "#facc15"
+        },
+        sapsan: {
+          id: "sapsan",
+          name: "Сапсан",
+          maxSpeed: 225,
+          accel: 32,
+          stopTime: 4.0,
+          carCount: 6,
+          carLen: 180,
+          hasPantograph: true,
+          color: "#e2e8f0",
+          accent: "#ef4444"
+        }
+      };
+
+      const state = {
+        started: false,
+        time: 0,
+        coins: 450,
+        thirst: 15, // 0..100
+        stamina: 100, // 0..100
+        grip: 100, // 0..100 for Pug
+        sprinting: false,
+        stance: "stand", // 'stand' | 'crouch' | 'prone'
+        onTrain: false,
+        trainOffset: 240, // position along train cars
+        tetherCooldown: 0,
+        tetherActiveTimer: 0,
+        pantographShakeTimer: 0,
+        pantographCooldown: 0,
+        qteActive: false,
+        qteTimer: 0,
+        qteTargetKey: "J",
+        shakeMag: 0,
+        toastTimer: 0,
+        toastText: "Позвони Таксе и Аките или подай состав на перрон.",
+        activeModal: null,
+        camera: { x: 0, y: 0 },
+
+        // Gear & items
+        hasBalaclava: false,
+        gloveTier: 0, // 0 = none, 1 = базовые перчатки, 2 = усиленные зацеп-перчатки
+        hasGoPro: false,
+        detectorTier: 1, // 1 = базовый, 2 = про-датчик
+        sodas: 1,
+        snacks: 1,
+        pepperSpray: 1,
+        consumeAnim: { who: null, kind: null, timer: 0, duration: 1.35 },
+        sapsanBoostTimer: 0,
+        runDistance: 0,
+        speechText: "",
+        speechSpeaker: "pug",
+        speechTimer: 0,
+        friendPantoTimer: 0,
+        friendPantoSpeaker: null,
+        friendPantoCooldown: 9.0,
+        currentStationIndex: 0,
+        stations: [
+          { name: "Вокзал Северный", xOffset: 0 },
+          { name: "Платформа Лесная", xOffset: 2400 },
+          { name: "Станция Портовая", xOffset: 4800 },
+          { name: "Конечная «Эльбрус-Вокзал»", xOffset: 7200 }
+        ],
+
+        // Characters
+        pug: {
+          x: 420,
+          y: 265,
+          vx: 0,
+          vy: 0,
+          facing: 1,
+          walkPhase: 0,
+          knockedOut: false,
+          recoverTimer: 0
+        },
+        dachshund: {
+          id: "dachshund",
+          name: "Такса",
+          x: 495,
+          y: 255,
+          spawned: false,
+          joined: false,
+          onTrain: false,
+          knockedOut: false,
+          grip: 100,
+          tethered: false,
+          callStatus: "Не вызывали"
+        },
+        akita: {
+          id: "akita",
+          name: "Акита",
+          x: 545,
+          y: 278,
+          spawned: false,
+          joined: false,
+          onTrain: false,
+          knockedOut: false,
+          grip: 100,
+          tethered: false,
+          callStatus: "Не вызывали"
+        },
+
+        // Train state
+        train: {
+          phase: "idle", // 'idle' | 'arriving' | 'stopped' | 'moving' | 'departing'
+          typeId: "electric",
+          x: -1400,
+          y: TRACK_CENTER_Y,
+          speedKmh: 0,
+          stopTimer: 0,
+          nextTypeIndex: 0,
+          queue: ["electric", "cargo", "locomotive", "sapsan"]
+        },
+
+        // Merged Doberman-Guard patrol units (yell "Остановитесь, зацеперы!" + stars)
+        dobermans: [
+          { id: 1, x: 880, y: 265, dir: -1, patrolMin: 720, patrolMax: 1140, mode: "sleeping", modeTimer: 6.5, chasing: false, stunnedTimer: 0, yellCooldown: 0 },
+          { id: 2, x: 1360, y: 265, dir: 1, patrolMin: 1180, patrolMax: 1620, mode: "patrol", modeTimer: 5.5, chasing: false, stunnedTimer: 0, yellCooldown: 0 }
+        ],
+        // New gameplay mechanics state
+        comboCount: 0,
+        comboTimer: 0,
+        railGrindActive: false,
+        railGrindCooldown: 0,
+        whistleTimer: 0,
+        whistleCooldown: 0,
+        sparksCollected: 0,
+        sparks: [
+          { id: 1, x: 380, y: TRACK_CENTER_Y - 34, collected: false },
+          { id: 2, x: 640, y: TRACK_CENTER_Y - 34, collected: false },
+          { id: 3, x: 900, y: TRACK_CENTER_Y - 34, collected: false },
+          { id: 4, x: 1160, y: TRACK_CENTER_Y - 34, collected: false }
+        ],
+
+        particles: []
+      };
+
+      function showToast(msg, sec = 3.2) {
+        state.toastText = msg;
+        state.toastTimer = sec;
+        const el = document.getElementById("toastBanner");
+        if (el) el.textContent = msg;
+      }
+
+      function addParticles(x, y, count, color, speed = 90) {
+        for (let i = 0; i < count; i++) {
+          const ang = Math.random() * Math.PI * 2;
+          const spd = 20 + Math.random() * speed;
+          state.particles.push({
+            x,
+            y,
+            vx: Math.cos(ang) * spd,
+            vy: Math.sin(ang) * spd,
+            life: 0.35 + Math.random() * 0.45,
+            maxLife: 0.8,
+            color,
+            size: 2 + Math.random() * 3.5
+          });
+        }
+      }
+
+      // Start game handler (guaranteed reliable)
+      window.startGameNow = function (ev) {
+        try {
+          if (ev && typeof ev.stopPropagation === "function") ev.stopPropagation();
+          state.started = true;
+          const overlay = document.getElementById("startOverlay");
+          if (overlay) {
+            overlay.classList.add("hidden");
+            overlay.style.display = "none";
+          }
+          ensureAudio();
+          playTone(620, 0.12, "triangle", 0.08);
+          showToast("Ты на вокзале! Позвони Таксе и Аките или жми «Подать состав».");
+          updateUI();
+        } catch (err) {
+          const overlay = document.getElementById("startOverlay");
+          if (overlay) overlay.style.display = "none";
+        }
+      };
+
+      window.handleStartOverlayClick = function (ev) {
+        if (!state.started) {
+          window.startGameNow(ev);
+        }
+      };
+
+      // Roll chance that one friend is already at station on start
+      function rollInitialFriendAtStation() {
+        const roll = Math.random();
+        if (roll < 0.35) {
+          state.dachshund.spawned = true;
+          state.dachshund.joined = true;
+          state.dachshund.x = state.pug.x + 48;
+          state.dachshund.y = state.pug.y - 12;
+          state.dachshund.callStatus = "Уже на вокзале!";
+          showToast("Повезло! Такса уже ждёт тебя на перроне.");
+        } else if (roll < 0.65) {
+          state.akita.spawned = true;
+          state.akita.joined = true;
+          state.akita.x = state.pug.x + 88;
+          state.akita.y = state.pug.y + 14;
+          state.akita.callStatus = "Уже на вокзале!";
+          showToast("Повезло! Акита уже на месте у перрона.");
+        }
+      }
+      rollInitialFriendAtStation();
+
+      // Modals
+      window.openModal = function (name) {
+        if (!state.started) return;
+        state.activeModal = name;
+        ["phone", "shop", "gear", "detector"].forEach((m) => {
+          const el = document.getElementById("modal" + m.charAt(0).toUpperCase() + m.slice(1));
+          if (el) el.classList.toggle("open", m === name);
+        });
+        renderModalContent(name);
+      };
+
+      window.closeModal = function (name) {
+        state.activeModal = null;
+        const el = document.getElementById("modal" + name.charAt(0).toUpperCase() + name.slice(1));
+        if (el) el.classList.remove("open");
+      };
+
+      window.backdropClose = function (ev, name) {
+        if (ev.target && ev.target.id === "modal" + name.charAt(0).toUpperCase() + name.slice(1)) {
+          closeModal(name);
+        }
+      };
+
+      function getCrewCount() {
+        let c = 1;
+        if (state.dachshund.joined && !state.dachshund.knockedOut) c++;
+        if (state.akita.joined && !state.akita.knockedOut) c++;
+        return c;
+      }
+
+      function getBalaclavaPrice() {
+        const crew = getCrewCount();
+        if (crew >= 3) return 300;
+        if (crew === 2) return 200;
+        return 100;
+      }
+
+      function getGlovesPrice() {
+        const crew = getCrewCount();
+        const base = state.gloveTier === 0 ? 140 : 240;
+        return base * crew;
+      }
+
+      function getGlovesSlipReduction() {
+        if (state.gloveTier >= 2) return 0.55;
+        if (state.gloveTier === 1) return 0.32;
+        return 0;
+      }
+
+      function renderModalContent(name) {
+        if (name === "phone") {
+          const d = state.dachshund;
+          const a = state.akita;
+          const dDist = Math.hypot(state.pug.x - d.x, state.pug.y - d.y);
+          const aDist = Math.hypot(state.pug.x - a.x, state.pug.y - a.y);
+          const dLabel = d.knockedOut ? "Тяжёлый срыв (нужна помощь)" : d.onTrain ? "На составе" : d.joined ? (dDist < 140 ? "Рядом" : "Бежит к тебе") : d.callStatus;
+          const aLabel = a.knockedOut ? "Тяжёлый срыв (нужна помощь)" : a.onTrain ? "На составе" : a.joined ? (aDist < 140 ? "Рядом" : "Бежит к тебе") : a.callStatus;
+          document.getElementById("phoneBody").innerHTML = `
+            <div class="item-card">
+              <div>
+                <div class="item-name">🌭 Такса — ${dLabel}</div>
+                <div class="item-desc">Юркий зацепер. Позвонить или подтянуть к себе.</div>
+              </div>
+              <button class="btn btn-accent" type="button" onclick="callFriend('dachshund')">${d.knockedOut ? "Поднять" : d.joined ? "Позвать" : "Позвонить"}</button>
+            </div>
+            <div class="item-card">
+              <div>
+                <div class="item-name">🐕 Акита — ${aLabel}</div>
+                <div class="item-desc">Мощный зацепер. На скорости срыв опасен — береги!</div>
+              </div>
+              <button class="btn btn-accent" type="button" onclick="callFriend('akita')">${a.knockedOut ? "Поднять" : a.joined ? "Позвать" : "Позвонить"}</button>
+            </div>
+          `;
+        } else if (name === "shop") {
+          const bPrice = getBalaclavaPrice();
+          const gPrice = getGlovesPrice();
+          document.getElementById("shopBody").innerHTML = `
+            <div class="item-desc" style="margin-bottom:8px;">Кассир Лабрадор: «Бери в дорогу — на скорости шутки плохи». Монет: <b>${state.coins}</b></div>
+            <div class="item-card">
+              <div>
+                <div class="item-name">🥤 Газява «Освежающий зацеп»</div>
+                <div class="item-desc">Снимает жажду (-45%) и бодрит хват (+20). В наличии: <b>${state.sodas} шт.</b> (35 🪙 / шт.)</div>
+              </div>
+              <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;">
+                <button class="btn btn-primary" type="button" onclick="buyPack('soda', 1)">x1 (35)</button>
+                <button class="btn btn-primary" type="button" onclick="buyPack('soda', 3)">x3 (95)</button>
+                <button class="btn btn-primary" type="button" onclick="buyPack('soda', 5)">x5 (150)</button>
+              </div>
+            </div>
+            <div class="item-card">
+              <div>
+                <div class="item-name">🦴 Хрумка «Хрустящая такса»</div>
+                <div class="item-desc">Восстанавливает силы (+55%). В наличии: <b>${state.snacks} шт.</b> (45 🪙 / шт.)</div>
+              </div>
+              <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;">
+                <button class="btn btn-primary" type="button" onclick="buyPack('snack', 1)">x1 (45)</button>
+                <button class="btn btn-primary" type="button" onclick="buyPack('snack', 3)">x3 (120)</button>
+                <button class="btn btn-primary" type="button" onclick="buyPack('snack', 5)">x5 (190)</button>
+              </div>
+            </div>
+            <div class="item-card">
+              <div>
+                <div class="item-name">🤝 Поделиться с друзьями</div>
+                <div class="item-desc">Передаёт 1 штуку из твоих рук другу — он сразу пьёт или хрумкает с анимацией!</div>
+              </div>
+              <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;">
+                <button class="btn btn-accent" type="button" onclick="shareWithFriend('dachshund', 'soda')">🥤 Таксе</button>
+                <button class="btn btn-accent" type="button" onclick="shareWithFriend('dachshund', 'snack')">🦴 Таксе</button>
+                <button class="btn btn-accent" type="button" onclick="shareWithFriend('akita', 'soda')">🥤 Аките</button>
+                <button class="btn btn-accent" type="button" onclick="shareWithFriend('akita', 'snack')">🦴 Аките</button>
+              </div>
+            </div>
+            <div class="item-card">
+              <div>
+                <div class="item-name">⚡ Энергетик «Сила Сапсана» (130 🪙)</div>
+                <div class="item-desc">12 сек: сильный хват, меньше жажды и выше скорость.</div>
+              </div>
+              <button class="btn btn-warn" type="button" onclick="buyShopItem('sapsan')">Купить</button>
+            </div>
+            <div class="item-card">
+              <div>
+                <div class="item-name">🎭 Балаклава на команду (${bPrice} 🪙)</div>
+                <div class="item-desc">Цена: 100 (один), 200 (вдвоём), 300 (втроём). Надевается на всех в команде и скрывает от охранников.</div>
+              </div>
+              <button class="btn btn-accent" type="button" onclick="buyShopItem('balaclava')">${state.hasBalaclava ? "Обновить" : "Взять"}</button>
+            </div>
+            <div class="item-card">
+              <div>
+                <div class="item-name">🧤 Перчатки зацепера (${gPrice} 🪙)</div>
+                <div class="item-desc">Комплект на команду. Снижают шанс соскальзывания рук и срыва. Ур. ${state.gloveTier}</div>
+              </div>
+              <button class="btn btn-accent" type="button" onclick="buyShopItem('gloves')">Улучшить</button>
+            </div>
+            <div class="item-card">
+              <div>
+                <div class="item-name">📷 Экшн-камера GoPro (260 🪙)</div>
+                <div class="item-desc">Даёт +35% монет за поездки и трюки на поезде.</div>
+              </div>
+              <button class="btn btn-accent" type="button" onclick="buyShopItem('gopro')">${state.hasGoPro ? "Куплено" : "Купить"}</button>
+            </div>
+            <div class="item-card">
+              <div>
+                <div class="item-name">🌶️ Перцовка «Анти-Доберман» (75 🪙)</div>
+                <div class="item-desc">Заливаешь добермана перцовкой, он скулит и отступает, а ты быстро убегаешь! В наличии: ${state.pepperSpray}</div>
+              </div>
+              <button class="btn btn-danger" type="button" onclick="buyShopItem('pepper')">Купить</button>
+            </div>
+          `;
+        } else if (name === "gear") {
+          document.getElementById("gearBody").innerHTML = `
+            <div class="item-card">
+              <div>
+                <div class="item-name">🧤 Перчатки (Ур. ${state.gloveTier}/2)</div>
+                <div class="item-desc">Снижение шанса срыва рук: ${Math.round(getGlovesSlipReduction() * 100)}%.</div>
+              </div>
+              <button class="btn" type="button" onclick="closeModal('gear'); openModal('shop');">В лавку</button>
+            </div>
+            <div class="item-card">
+              <div>
+                <div class="item-name">🎭 Балаклава: ${state.hasBalaclava ? "Надета на команду" : "Нет"}</div>
+                <div class="item-desc">Скрывает лицо от охранников и снижает агрессию доберманов.</div>
+              </div>
+              <button class="btn" type="button" onclick="closeModal('gear'); openModal('shop');">В лавку</button>
+            </div>
+            <div class="item-card">
+              <div>
+                <div class="item-name">📷 GoPro: ${state.hasGoPro ? "Установлена (+35% монет)" : "Нет"}</div>
+                <div class="item-desc">Снимает зацеп на скорости и умножает награду за заезды.</div>
+              </div>
+              <button class="btn" type="button" onclick="closeModal('gear'); openModal('shop');">В лавку</button>
+            </div>
+            <div class="item-card">
+              <div>
+                <div class="item-name">🥤 Газява (${state.sodas}) / 🦴 Хрумка (${state.snacks})</div>
+                <div class="item-desc">Выпить или перекусить самому с анимацией, либо угостить друга.</div>
+              </div>
+              <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;">
+                <button class="btn btn-primary" type="button" onclick="consumeItem('soda')">🥤 Пить</button>
+                <button class="btn btn-primary" type="button" onclick="consumeItem('snack')">🦴 Есть</button>
+                <button class="btn btn-accent" type="button" onclick="shareWithFriend('dachshund', 'snack')">🤝 Таксе</button>
+                <button class="btn btn-accent" type="button" onclick="shareWithFriend('akita', 'snack')">🤝 Аките</button>
+              </div>
+            </div>
+            <div class="item-card">
+              <div>
+                <div class="item-name">🌶️ Перцовка против добермана: ${state.pepperSpray} шт.</div>
+                <div class="item-desc">При встрече с доберманом жми «Действие» или «Перцовка» — заливает и даёт рывок!</div>
+              </div>
+              <button class="btn btn-danger" type="button" onclick="usePepperSpray()">Пшикнуть</button>
+            </div>
+          `;
+        } else if (name === "detector") {
+          const t = TRAIN_TYPES[state.train.typeId];
+          const spd = Math.round(state.train.speedKmh);
+          const risk = state.onTrain
+            ? spd > 175 ? "КРИТИЧЕСКИЙ (Сапсан / шквал)" : spd > 110 ? "ВЫСОКИЙ" : "УМЕРЕННЫЙ"
+            : "Вне состава";
+          document.getElementById("detectorBody").innerHTML = `
+            <div class="item-card">
+              <div>
+                <div class="item-name">📡 Текущая скорость: ${spd} км/ч</div>
+                <div class="item-desc">Состав: ${t.name} • Макс: ${t.maxSpeed} км/ч • Риск срыва: ${risk}</div>
+              </div>
+            </div>
+            <div class="item-card">
+              <div>
+                <div class="item-name">⚙️ Калибровка датчика (Ур. ${state.detectorTier}/2)</div>
+                <div class="item-desc">Уровень 2 замедляет потерю хвата на высокой скорости на 20%.</div>
+              </div>
+              <button class="btn btn-accent" type="button" onclick="upgradeDetector()">${state.detectorTier >= 2 ? "Макс. ур." : "Апгрейд (180 🪙)"}</button>
+            </div>
+          `;
+        }
+      }
+
+      window.callFriend = function (who) {
+        const f = state[who];
+        if (!f) return;
+        if (f.knockedOut) {
+          if (state.coins < 50) {
+            showToast("Нужно 50 монет, чтобы привести друга в чувство.");
+            return;
+          }
+          state.coins -= 50;
+          f.knockedOut = false;
+          f.joined = true;
+          f.grip = 100;
+          f.x = state.pug.x + 36;
+          f.y = state.pug.y + 8;
+          playTone(580, 0.14);
+          showToast(`${f.name} снова в строю! (-50 🪙)`);
+          renderModalContent("phone");
+          return;
+        }
+        if (f.joined) {
+          f.x = state.pug.x + 34;
+          f.y = state.pug.y + 10;
+          showToast(`${f.name} уже рядом с тобой.`);
+          renderModalContent("phone");
+          return;
+        }
+        f.spawned = true;
+        f.joined = true;
+        f.grip = 100;
+        f.x = 120;
+        f.y = 265;
+        f.callStatus = "Идёт к тебе";
+        playTone(680, 0.12);
+        showToast(`Позвонил: ${f.name} бежит на перрон!`);
+        renderModalContent("phone");
+      };
+
+      window.buyShopItem = function (item) {
+        if (item === "soda") {
+          if (state.coins < 35) return showToast("Не хватает монет (нужно 35).");
+          state.coins -= 35;
+          state.sodas++;
+          state.thirst = Math.max(0, state.thirst - 45);
+          state.grip = Math.min(100, state.grip + 20);
+          playTone(700, 0.1);
+          showToast("Купил Газяву! Жажда снижена.");
+        } else if (item === "snack") {
+          if (state.coins < 45) return showToast("Не хватает монет (нужно 45).");
+          state.coins -= 45;
+          state.snacks++;
+          state.stamina = Math.min(100, state.stamina + 55);
+          playTone(640, 0.1);
+          showToast("Взял Хрумку! Выносливость пополнена.");
+        } else if (item === "sapsan") {
+          if (state.coins < 130) return showToast("Не хватает монет (нужно 130).");
+          state.coins -= 130;
+          state.sapsanBoostTimer = 12;
+          state.grip = 100;
+          state.stamina = 100;
+          playTone(880, 0.16);
+          addParticles(state.pug.x, state.pug.y, 18, "#38bdf8", 130);
+          showToast("Сила Сапсана активирована на 12 сек!");
+        } else if (item === "balaclava") {
+          const price = getBalaclavaPrice();
+          if (state.coins < price) return showToast(`Нужно ${price} монет на текущий состав команды.`);
+          state.coins -= price;
+          state.hasBalaclava = true;
+          playTone(540, 0.12);
+          showToast(`Балаклава куплена (${price} 🪙) и надета на всех в команде!`);
+        } else if (item === "gloves") {
+          if (state.gloveTier >= 2) return showToast("Перчатки уже максимального уровня!");
+          const price = getGlovesPrice();
+          if (state.coins < price) return showToast(`Нужно ${price} монет на комплект для команды.`);
+          state.coins -= price;
+          state.gloveTier++;
+          playTone(660, 0.12);
+          showToast(`Перчатки улучшены до ур. ${state.gloveTier}! Руки меньше скользят.`);
+        } else if (item === "gopro") {
+          if (state.hasGoPro) return showToast("GoPro уже куплена.");
+          if (state.coins < 260) return showToast("Нужно 260 монет для GoPro.");
+          state.coins -= 260;
+          state.hasGoPro = true;
+          playTone(760, 0.14);
+          showToast("GoPro закреплена! +35% к награде за зацепы.");
+        } else if (item === "pepper") {
+          if (state.coins < 75) return showToast("Нужно 75 монет для перцовки.");
+          state.coins -= 75;
+          state.pepperSpray++;
+          playTone(780, 0.11);
+          showToast("Купил перцовку! Доберманам мало не покажется.");
+        }
+        renderModalContent("shop");
+        updateUI();
+      };
+
+      function triggerConsumeAnim(who, kind) {
+        state.consumeAnim = { who, kind, timer: 1.35, duration: 1.35 };
+        if (who === "pug") {
+          state.speechText = kind === "soda" ? "Глоток свежей газявы!" : "Хрум-хрум, вкуснотища!";
+          state.speechSpeaker = "pug";
+          state.speechTimer = 1.6;
+        } else {
+          const f = state[who];
+          if (f) {
+            state.speechText = kind === "soda" ? `${f.name}: «От души за газяву!»` : `${f.name}: «Хрум-хрум! Спасибо, бро!»`;
+            state.speechSpeaker = who;
+            state.speechTimer = 1.8;
+          }
+        }
+      }
+
+      window.buyPack = function (kind, qty) {
+        const prices = {
+          soda: { 1: 35, 3: 95, 5: 150 },
+          snack: { 1: 45, 3: 120, 5: 190 }
+        };
+        const cost = (prices[kind] && prices[kind][qty]) || (qty * 40);
+        if (state.coins < cost) {
+          showToast(`Не хватает монет: нужно ${cost}, у тебя ${state.coins}.`);
+          return;
+        }
+        state.coins -= cost;
+        if (kind === "soda") {
+          state.sodas += qty;
+          playTone(720, 0.12);
+          showToast(`Взял пачку Газявы x${qty} (-${cost} 🪙). Хватит и на команду!`);
+        } else {
+          state.snacks += qty;
+          playTone(660, 0.12);
+          showToast(`Взял пачку Хрумки x${qty} (-${cost} 🪙). Можно угостить друзей!`);
+        }
+        if (state.activeModal === "shop") renderModalContent("shop");
+        if (state.activeModal === "gear") renderModalContent("gear");
+        updateUI();
+      };
+
+      window.consumeItem = function (kind) {
+        if (kind === "soda") {
+          if (state.sodas <= 0) return showToast("Газява закончилась! Возьми в лавке Лабрадора.");
+          state.sodas--;
+          state.thirst = Math.max(0, state.thirst - 48);
+          state.grip = Math.min(100, state.grip + 22);
+          playTone(740, 0.12);
+          addParticles(state.pug.x, state.pug.y - 16, 12, "#38bdf8", 85);
+          triggerConsumeAnim("pug", "soda");
+          showToast("Мопс пьёт Газяву: жажда спала, хват стал крепче!");
+        } else {
+          if (state.snacks <= 0) return showToast("Хрумка закончилась! Загляни в лавку Лабрадора.");
+          state.snacks--;
+          state.stamina = Math.min(100, state.stamina + 58);
+          state.grip = Math.min(100, state.grip + 10);
+          playTone(620, 0.12);
+          addParticles(state.pug.x, state.pug.y - 16, 12, "#fbbf24", 85);
+          triggerConsumeAnim("pug", "snack");
+          showToast("Мопс хрумкает Хрумку: силы восстановлены!");
+        }
+        if (state.activeModal === "gear") renderModalContent("gear");
+        if (state.activeModal === "shop") renderModalContent("shop");
+        updateUI();
+      };
+
+      window.shareWithFriend = function (who, kind) {
+        const f = state[who];
+        if (!f || !f.joined || f.knockedOut) {
+          showToast(`Сначала позови ${f ? f.name : "друга"} в команду через «Звонок»!`);
+          return;
+        }
+        if (kind === "soda") {
+          if (state.sodas <= 0) return showToast("У тебя в руках нет Газявы, чтобы поделиться!");
+          state.sodas--;
+          f.grip = Math.min(100, f.grip + 30);
+          playTone(780, 0.13);
+          addParticles(f.x, f.y - 14, 14, "#38bdf8", 95);
+          triggerConsumeAnim(who, "soda");
+          showToast(`Поделился Газявой с ${f.name} — 1 шт. ушла из рук, ${f.name} пьёт и бодрится!`);
+        } else {
+          if (state.snacks <= 0) return showToast("У тебя в руках нет Хрумки, чтобы поделиться!");
+          state.snacks--;
+          f.grip = Math.min(100, f.grip + 25);
+          playTone(680, 0.13);
+          addParticles(f.x, f.y - 14, 14, "#fbbf24", 95);
+          triggerConsumeAnim(who, "snack");
+          showToast(`Угостил ${f.name} Хрумкой — 1 шт. ушла из рук, ${f.name} с аппетитом кушает!`);
+        }
+        if (state.activeModal === "gear") renderModalContent("gear");
+        if (state.activeModal === "shop") renderModalContent("shop");
+        updateUI();
+      };
+
+      window.consumeQuickItem = function () {
+        if (state.thirst >= 30 && state.sodas > 0) {
+          window.consumeItem("soda");
+        } else if (state.snacks > 0) {
+          window.consumeItem("snack");
+        } else if (state.sodas > 0) {
+          window.consumeItem("soda");
+        } else {
+          showToast("Нет расходников — загляни в лавку Лабрадора.");
+        }
+      };
+
+      window.upgradeDetector = function () {
+        if (state.detectorTier >= 2) return;
+        if (state.coins < 180) return showToast("Нужно 180 монет для апгрейда детектора.");
+        state.coins -= 180;
+        state.detectorTier = 2;
+        playTone(790, 0.12);
+        showToast("Детектор откалиброван до ур. 2!");
+        renderModalContent("detector");
+        updateUI();
+      };
+
+      // Train summoning & lifelike cycle: idle -> arriving -> stopped -> moving -> departing
+      window.summonTrain = function () {
+        if (!state.started) return;
+        if (state.onTrain) {
+          showToast("Ты уже на составе!");
+          return;
+        }
+        const tr = state.train;
+        if (tr.phase === "idle" || tr.phase === "departing") {
+          const nextId = tr.queue[tr.nextTypeIndex % tr.queue.length];
+          tr.nextTypeIndex++;
+          tr.typeId = nextId;
+          tr.phase = "arriving";
+          tr.x = -1350;
+          tr.speedKmh = 45;
+          tr.stopTimer = 0;
+          const info = TRAIN_TYPES[nextId];
+          playTone(310, 0.22, "sawtooth", 0.05);
+          showToast(`Подан состав: ${info.name}. Подходит к перрону...`);
+        } else if (tr.phase === "stopped") {
+          boardTrain();
+        } else {
+          showToast("Состав уже в пути — жди остановки или зацепляйся.");
+        }
+      };
+
+      function getTrainLength() {
+        const info = TRAIN_TYPES[state.train.typeId];
+        return info.carCount * info.carLen;
+      }
+
+      function boardTrain() {
+        const tr = state.train;
+        if (tr.phase !== "stopped" && tr.phase !== "moving") {
+          showToast("Состав ещё не остановился у перрона.");
+          return;
+        }
+        const distY = Math.abs(state.pug.y - TRACK_CENTER_Y);
+        if (distY > 210) {
+          showToast("Подойди ближе к перрону и путям, чтобы зацепиться!");
+          return;
+        }
+        state.onTrain = true;
+        state.stance = "stand";
+        state.grip = Math.max(state.grip, 75);
+        state.trainOffset = Math.max(120, Math.min(getTrainLength() - 140, state.pug.x - tr.x));
+        [state.dachshund, state.akita].forEach((f) => {
+          if (f.joined && !f.knockedOut) {
+            f.onTrain = true;
+            f.grip = 100;
+            f.tethered = false;
+          }
+        });
+        playTone(460, 0.14);
+        addParticles(state.pug.x, TRACK_CENTER_Y - 12, 14, "#fbbf24", 110);
+        showToast("Зацепился! Следи за скоростью, стойками и друзьями.");
+        syncControlBars();
+      }
+
+      function hopOffTrain() {
+        if (!state.onTrain) return;
+        const tr = state.train;
+        if (tr.speedKmh > 65) {
+          showToast("Слишком быстро для чистого спрыга! Жди остановки.");
+          return;
+        }
+        state.onTrain = false;
+        state.stance = "stand";
+        state.pug.x = Math.max(120, Math.min(WORLD_W - 120, tr.x + state.trainOffset));
+        state.pug.y = PLATFORM_BOT - 12;
+        [state.dachshund, state.akita].forEach((f) => {
+          if (f.onTrain) {
+            f.onTrain = false;
+            f.x = state.pug.x + (f.id === "dachshund" ? 36 : 72);
+            f.y = PLATFORM_BOT - 8;
+          }
+        });
+        playTone(390, 0.1);
+        showToast("Спрыгнул на перрон.");
+        syncControlBars();
+      }
+
+      window.setStance = function (nextStance) {
+        state.stance = nextStance;
+        document.getElementById("btnStand").classList.toggle("active", nextStance === "stand");
+        document.getElementById("btnCrouch").classList.toggle("active", nextStance === "crouch");
+        document.getElementById("btnProne").classList.toggle("active", nextStance === "prone");
+        if (nextStance === "crouch") {
+          state.speechText = "Так, пацаны, садимся!";
+          state.speechTimer = 2.4;
+          showToast("Так, пацаны, садимся! (Корточки)", 1.8);
+        } else if (nextStance === "prone") {
+          state.speechText = "Так, пацаны, ложимся!";
+          state.speechTimer = 2.4;
+          showToast("Так, пацаны, ложимся! (Упор лёжа)", 1.8);
+        } else {
+          showToast("Стойка: Стоя", 1.5);
+        }
+      };
+
+      window.tetherFriends = function () {
+        if (!state.onTrain) {
+          showToast("Трос используется на составе.");
+          return;
+        }
+        if (state.tetherCooldown > 0) {
+          showToast(`Трос перезаряжается (${state.tetherCooldown.toFixed(1)}с)`);
+          return;
+        }
+        let tetheredAny = false;
+        [state.dachshund, state.akita].forEach((f) => {
+          if (f.joined && f.onTrain && !f.knockedOut) {
+            f.tethered = true;
+            f.grip = Math.min(100, f.grip + 35);
+            tetheredAny = true;
+          }
+        });
+        state.tetherActiveTimer = 4.5;
+        state.tetherCooldown = 6.0;
+        playTone(510, 0.12);
+        if (tetheredAny) {
+          showToast("Пристраховал Таксу и Акиту тросом! Срыв надолго отсрочен.");
+        } else {
+          showToast("Натянул страховочный трос.");
+        }
+      };
+
+      function triggerSurgeDeath(targetWho) {
+        addParticles(state.pug.x, TRACK_CENTER_Y - 26, 45, "#38bdf8", 230);
+        addParticles(state.pug.x, TRACK_CENTER_Y - 26, 30, "#ef4444", 190);
+        playTone(110, 0.45, "sawtooth", 0.12);
+        playTone(1240, 0.2, "square", 0.07);
+        state.shakeMag = 18;
+
+        if (targetWho === "pug") {
+          state.coins = Math.max(0, state.coins - 1000);
+          state.onTrain = false;
+          state.stance = "stand";
+          state.qteActive = false;
+          state.pug.x = 420;
+          state.pug.y = 265;
+          state.pug.knockedOut = true;
+          state.pug.recoverTimer = 3.2;
+          state.grip = 80;
+          showToast("⚡ МОЩНЫЙ ЭНЕРГЕТИЧЕСКИЙ ВСПЛЕСК! Мопс погиб от разряда — списано 1.000 монеток!", 5.0);
+          syncControlBars();
+        } else {
+          const f = state[targetWho];
+          if (f) {
+            f.onTrain = false;
+            f.tethered = false;
+            f.knockedOut = true;
+            f.joined = false;
+            f.x = 240;
+            f.y = 260;
+            state.coins = Math.max(0, state.coins - 200);
+            state.speechText = `⚡ Разряд! ${f.name} погибла...`;
+            state.speechSpeaker = "pug";
+            state.speechTimer = 3.6;
+            showToast(`⚡ Энергетический всплеск! ${f.name} погибла от разряда — штраф 200 долларов (200 монет).`, 4.8);
+          }
+        }
+      }
+
+      window.shakePantograph = function () {
+        if (!state.onTrain) {
+          showToast("Пантограф доступен только на составе.");
+          return;
+        }
+        const info = TRAIN_TYPES[state.train.typeId];
+        if (!info.hasPantograph) {
+          showToast("У этого состава нет верхнего токоприёмника-пантографа.");
+          return;
+        }
+        if (state.pantographCooldown > 0) {
+          showToast(`Пантограф остывает (${state.pantographCooldown.toFixed(1)}с)`);
+          return;
+        }
+        state.pantographShakeTimer = 1.6;
+        state.pantographCooldown = 4.5;
+        state.shakeMag = 11;
+        state.grip = Math.max(8, state.grip - (state.stance === "prone" ? 12 : 22));
+        playTone(180, 0.25, "sawtooth", 0.09);
+        playTone(920, 0.14, "square", 0.05);
+        addParticles(state.pug.x + 25, TRACK_CENTER_Y - 38, 28, "#38bdf8", 180);
+        addParticles(state.pug.x + 25, TRACK_CENTER_Y - 38, 18, "#facc15", 150);
+
+        // Very small chance (~5%) of lethal energy surge on Pug
+        if (Math.random() < 0.05) {
+          triggerSurgeDeath("pug");
+          return;
+        }
+
+        const bonus = state.hasGoPro ? 45 : 30;
+        state.coins += bonus;
+        showToast(`⚡ Шатанул пантограф! Всплеск искр и +${bonus} монет!`);
+      };
+
+      window.cycleStation = function () {
+        if (!state.started) return;
+        if (state.onTrain) {
+          showToast("Ты уже в пути между остановками на составе!");
+          return;
+        }
+        state.currentStationIndex = (state.currentStationIndex + 1) % state.stations.length;
+        const st = state.stations[state.currentStationIndex];
+        state.pug.x = 420;
+        state.pug.y = 265;
+        [state.dachshund, state.akita].forEach((f, idx) => {
+          if (f.joined && !f.knockedOut) {
+            f.x = state.pug.x + 36 + idx * 34;
+            f.y = state.pug.y + (idx === 0 ? -10 : 12);
+          }
+        });
+        // Reset train or place near station
+        state.train.phase = "idle";
+        state.train.speedKmh = 0;
+        state.train.x = -1400;
+        playTone(540, 0.12);
+        showToast(`Переехал на остановку: «${st.name}» (${state.currentStationIndex + 1}/${state.stations.length}).`);
+      };
+
+      window.usePepperSpray = function () {
+        if (state.pepperSpray <= 0) {
+          showToast("Перцовка закончилась! Загляни в лавку Лабрадора.");
+          return false;
+        }
+        let hitAny = false;
+        state.dobermans.forEach((d) => {
+          const dist = Math.hypot(state.pug.x - d.x, state.pug.y - d.y);
+          if (dist < 175) {
+            hitAny = true;
+            d.chasing = false;
+            d.stunnedTimer = 4.5;
+            d.dir = -d.dir;
+            d.x = Math.max(d.patrolMin, d.x - d.dir * 65);
+            addParticles(d.x, d.y - 8, 22, "#f97316", 140);
+          }
+        });
+        if (!hitAny) {
+          showToast("Рядом нет добермана — береги перцовку!");
+          return false;
+        }
+        state.pepperSpray--;
+        state.stamina = Math.min(100, state.stamina + 35);
+        state.sprinting = true;
+        setTimeout(() => { state.sprinting = false; }, 1600);
+        playTone(880, 0.14, "square", 0.07);
+        state.speechText = "Получи перцовки, пёс! Валим!";
+        state.speechSpeaker = "pug";
+        state.speechTimer = 2.4;
+        showToast("🌶️ Залил добермана перцовкой и рванул прочь!");
+        if (state.activeModal === "gear") renderModalContent("gear");
+        return true;
+      };
+
+      window.handlePrimaryAction = function () {
+        if (!state.started) return;
+        if (state.onTrain) {
+          if (state.train.speedKmh <= 65) {
+            hopOffTrain();
+          } else {
+            window.triggerGripHold();
+          }
+          return;
+        }
+        // Near aggressive Doberman & have pepper spray -> spray & run!
+        const nearDob = state.dobermans.some((d) => Math.hypot(state.pug.x - d.x, state.pug.y - d.y) < 165);
+        if (nearDob && state.pepperSpray > 0) {
+          window.usePepperSpray();
+          return;
+        }
+
+        // Shop check
+        const shopCenterX = SHOP_ZONE.x + SHOP_ZONE.w / 2;
+        const shopCenterY = SHOP_ZONE.y + SHOP_ZONE.h + 15;
+        if (Math.hypot(state.pug.x - shopCenterX, state.pug.y - shopCenterY) < 95) {
+          openModal("shop");
+          return;
+        }
+        // Train boarding if arrived/stopped/moving nearby
+        if ((state.train.phase === "stopped" || state.train.phase === "moving") && Math.abs(state.pug.y - TRACK_CENTER_Y) < 210) {
+          boardTrain();
+          return;
+        }
+        // Otherwise quick consume if thirsty/tired
+        consumeQuickItem();
+      };
+
+      window.startRailGrind = function () {
+        if (!state.onTrain) {
+          showToast("Прокат по крыше работает только на составе.");
+          return;
+        }
+        if (state.railGrindCooldown > 0) {
+          showToast(`Прокат перезаряжается (${state.railGrindCooldown.toFixed(1)}с)`);
+          return;
+        }
+        state.railGrindActive = true;
+        state.railGrindCooldown = 5.0;
+        state.comboCount++;
+        state.comboTimer = 5.0;
+        playTone(720, 0.14);
+        showToast("🛹 Погнал прокатом по крыше! Хват стабилизирован.");
+      };
+
+      window.callCrewWhistle = function () {
+        if (state.whistleCooldown > 0) {
+          showToast(`Свисток остывает (${state.whistleCooldown.toFixed(1)}с)`);
+          return;
+        }
+        state.whistleTimer = 3.0;
+        state.whistleCooldown = 5.5;
+        let pulled = 0;
+        [state.dachshund, state.akita].forEach((f, idx) => {
+          if (f.joined && !f.knockedOut) {
+            pulled++;
+            f.onTrain = state.onTrain;
+            f.grip = Math.min(100, f.grip + 25);
+            if (!state.onTrain) {
+              f.x = state.pug.x - state.pug.facing * (34 + idx * 30);
+              f.y = state.pug.y + (idx === 0 ? -10 : 12);
+            }
+          }
+        });
+        playTone(980, 0.15, "sine", 0.07);
+        addParticles(state.pug.x, state.pug.y - 16, 12, "#38bdf8", 90);
+        showToast(pulled > 0 ? `📣 Свистнул команде! Подтянул состав (${pulled}).` : "📣 Свистнул — но друзей пока нет в команде.");
+      };
+
+      window.triggerGripHold = function () {
+        if (!state.onTrain) return;
+        const stanceBonus = state.stance === "prone" ? 28 : state.stance === "crouch" ? 20 : 12;
+        const gloveBonus = getGlovesSlipReduction() * 16;
+        state.grip = Math.min(100, state.grip + stanceBonus + gloveBonus);
+        state.qteActive = false;
+        playTone(590, 0.07);
+        addParticles(state.pug.x, TRACK_CENTER_Y - 10, 8, "#fbbf24", 70);
+      };
+
+      window.setSprint = function (val) {
+        state.sprinting = !!val;
+      };
+
+      function syncControlBars() {
+        document.getElementById("stationRow").style.display = state.onTrain ? "none" : "flex";
+        document.getElementById("trainRow").style.display = state.onTrain ? "flex" : "none";
+        document.getElementById("extraTrainRow").style.display = state.onTrain ? "flex" : "none";
+        const btnAct = document.getElementById("btnPrimaryAction");
+        if (state.onTrain) {
+          btnAct.textContent = state.train.speedKmh <= 65 ? "🚉 Спрыгнуть" : "✊ Хват";
+        } else {
+          const shopCenterX = SHOP_ZONE.x + SHOP_ZONE.w / 2;
+          const shopCenterY = SHOP_ZONE.y + SHOP_ZONE.h + 15;
+          if (Math.hypot(state.pug.x - shopCenterX, state.pug.y - shopCenterY) < 95) {
+            btnAct.textContent = "🛒 Лавка";
+          } else if ((state.train.phase === "stopped" || state.train.phase === "moving") && Math.abs(state.pug.y - TRACK_CENTER_Y) < 210) {
+            btnAct.textContent = "🚆 Зацепиться";
+          } else {
+            btnAct.textContent = "⚡ Действие";
+          }
+        }
+      }
+
+      // Keyboard & Joystick input
+      const keys = {};
+      window.addEventListener("keydown", (e) => {
+        const k = e.key.toLowerCase();
+        keys[k] = true;
+        if (!state.started && (k === "enter" || k === " ")) {
+          window.startGameNow(e);
+          return;
+        }
+        if (!state.started) return;
+        if (k === "shift") state.sprinting = true;
+        if (k === "c") setStance("crouch");
+        if (k === "x") setStance("prone");
+        if (k === "z") setStance("stand");
+        if (k === "r") tetherFriends();
+        if (k === "f") shakePantograph();
+        if (k === "j" || k === " ") triggerGripHold();
+        if (k === "e") handlePrimaryAction();
+      });
+      window.addEventListener("keyup", (e) => {
+        const k = e.key.toLowerCase();
+        keys[k] = false;
+        if (k === "shift") state.sprinting = false;
+      });
+
+      const stickZone = document.getElementById("stickZone");
+      const stickKnob = document.getElementById("stickKnob");
+      let stickVec = { x: 0, y: 0 };
+      let stickPointerId = null;
+
+      function updateStick(clientX, clientY) {
+        const rect = stickZone.getBoundingClientRect();
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+        const maxR = rect.width * 0.36;
+        let dx = clientX - cx;
+        let dy = clientY - cy;
+        const dist = Math.hypot(dx, dy);
+        if (dist > maxR && dist > 0) {
+          dx = (dx / dist) * maxR;
+          dy = (dy / dist) * maxR;
+        }
+        stickKnob.style.transform = `translate(${dx}px, ${dy}px)`;
+        stickVec.x = maxR > 0 ? dx / maxR : 0;
+        stickVec.y = maxR > 0 ? dy / maxR : 0;
+      }
+
+      function resetStick() {
+        stickPointerId = null;
+        stickVec.x = 0;
+        stickVec.y = 0;
+        stickKnob.style.transform = "translate(0px, 0px)";
+      }
+
+      stickZone.addEventListener("pointerdown", (e) => {
+        if (!state.started) return;
+        e.stopPropagation();
+        stickPointerId = e.pointerId;
+        stickZone.setPointerCapture(e.pointerId);
+        updateStick(e.clientX, e.clientY);
+      });
+      stickZone.addEventListener("pointermove", (e) => {
+        if (e.pointerId === stickPointerId) {
+          updateStick(e.clientX, e.clientY);
+        }
+      });
+      stickZone.addEventListener("pointerup", (e) => {
+        if (e.pointerId === stickPointerId) resetStick();
+      });
+      stickZone.addEventListener("pointercancel", resetStick);
+
+      function getMoveInput() {
+        let ix = stickVec.x;
+        let iy = stickVec.y;
+        if (keys["a"] || keys["arrowleft"]) ix -= 1;
+        if (keys["d"] || keys["arrowright"]) ix += 1;
+        if (keys["w"] || keys["arrowup"]) iy -= 1;
+        if (keys["s"] || keys["arrowdown"]) iy += 1;
+        const len = Math.hypot(ix, iy);
+        if (len > 1) {
+          ix /= len;
+          iy /= len;
+        }
+        return { ix, iy };
+      }
+
+      // Companion fall handling (experienced surfers, not noobs, but high speed & heavy consequences)
+      function handleCompanionFall(friend, speedKmh) {
+        friend.onTrain = false;
+        friend.tethered = false;
+        state.coins = Math.max(0, state.coins - 100);
+        state.shakeMag = Math.max(state.shakeMag, 9);
+        addParticles(friend.x, friend.y, 16, "#ef4444", 120);
+        playTone(150, 0.25, "sawtooth", 0.08);
+
+        if (friend.id === "dachshund") {
+          state.speechText = "Бля, Такса слетела!";
+          state.speechTimer = 3.0;
+          friend.x = Math.max(140, Math.min(WORLD_W - 140, state.train.x + state.trainOffset));
+          friend.y = PLATFORM_BOT - 8;
+          friend.grip = 80;
+          showToast("Бля, Такса слетела! Штраф -100 монет.", 3.6);
+        } else if (friend.id === "akita" && speedKmh >= 95) {
+          friend.knockedOut = true;
+          friend.joined = false;
+          friend.x = 240;
+          friend.y = 260;
+          showToast("АКИТА сорвалась на высокой скорости! Тяжёлый срыв, -100 монет. Позвони в телефон!", 4.2);
+        } else {
+          friend.x = Math.max(140, Math.min(WORLD_W - 140, state.train.x + state.trainOffset));
+          friend.y = PLATFORM_BOT - 8;
+          friend.grip = 80;
+          showToast(`${friend.name} слетела с состава! Штраф -100 монет.`, 3.4);
+        }
+      }
+
+      function handlePugFall(speedKmh) {
+        state.onTrain = false;
+        state.stance = "stand";
+        state.qteActive = false;
+        state.railGrindActive = false;
+        state.comboCount = 0;
+        state.comboTimer = 0;
+
+        const fallX = Math.max(150, Math.min(WORLD_W - 150, state.train.x + state.trainOffset));
+        state.pug.x = fallX;
+        state.pug.y = PLATFORM_BOT - 12;
+        state.pug.knockedOut = true;
+        state.pug.recoverTimer = 2.4;
+        state.grip = 65;
+        state.shakeMag = 12;
+
+        // Companions on train also unboard when Pug falls off so they don't stay stuck "on train"
+        [state.dachshund, state.akita].forEach((f, idx) => {
+          if (f.onTrain) {
+            f.onTrain = false;
+            f.tethered = false;
+            f.x = Math.max(130, Math.min(WORLD_W - 130, fallX + 36 + idx * 34));
+            f.y = PLATFORM_BOT - 6;
+            f.grip = 75;
+          }
+        });
+
+        const penalty = speedKmh > 130 ? 100 : 50;
+        state.coins = Math.max(0, state.coins - penalty);
+        addParticles(state.pug.x, state.pug.y, 22, "#f97316", 150);
+        addParticles(state.pug.x, state.pug.y, 12, "#facc15", 110);
+        playTone(130, 0.3, "sawtooth", 0.09);
+        showToast(`Мопс слетел на ${Math.round(speedKmh)} км/ч! Команда тоже спрыгнула к откосу (-${penalty} монет).`, 4.2);
+        syncControlBars();
+      }
+
+      // Main simulation step
+      function update(dt) {
+        state.time += dt;
+        if (state.toastTimer > 0) {
+          state.toastTimer = Math.max(0, state.toastTimer - dt);
+        }
+        if (state.shakeMag > 0) {
+          state.shakeMag = Math.max(0, state.shakeMag - dt * 28);
+        }
+        if (state.tetherCooldown > 0) state.tetherCooldown = Math.max(0, state.tetherCooldown - dt);
+        if (state.tetherActiveTimer > 0) state.tetherActiveTimer = Math.max(0, state.tetherActiveTimer - dt);
+        if (state.pantographShakeTimer > 0) state.pantographShakeTimer = Math.max(0, state.pantographShakeTimer - dt);
+        if (state.pantographCooldown > 0) state.pantographCooldown = Math.max(0, state.pantographCooldown - dt);
+        if (state.sapsanBoostTimer > 0) state.sapsanBoostTimer = Math.max(0, state.sapsanBoostTimer - dt);
+        if (state.railGrindCooldown > 0) state.railGrindCooldown = Math.max(0, state.railGrindCooldown - dt);
+        if (state.whistleTimer > 0) state.whistleTimer = Math.max(0, state.whistleTimer - dt);
+        if (state.whistleCooldown > 0) state.whistleCooldown = Math.max(0, state.whistleCooldown - dt);
+        if (state.comboTimer > 0) {
+          state.comboTimer = Math.max(0, state.comboTimer - dt);
+          if (state.comboTimer === 0) state.comboCount = 0;
+        }
+        if (state.consumeAnim && state.consumeAnim.timer > 0) {
+          state.consumeAnim.timer = Math.max(0, state.consumeAnim.timer - dt);
+          if (state.consumeAnim.timer === 0) {
+            state.consumeAnim.who = null;
+            state.consumeAnim.kind = null;
+          }
+        }
+        if (state.speechTimer > 0) {
+          state.speechTimer = Math.max(0, state.speechTimer - dt);
+          if (state.speechTimer === 0) state.speechText = "";
+        }
+
+        // Thirst & Stamina
+        const thirstRate = state.sapsanBoostTimer > 0 ? 0.55 : 1.15;
+        state.thirst = Math.min(100, state.thirst + thirstRate * dt);
+
+        const move = getMoveInput();
+        const moving = Math.hypot(move.ix, move.iy) > 0.08;
+
+        // Train lifecycle: idle -> arriving -> stopped -> moving -> departing -> idle
+        const tr = state.train;
+        const info = TRAIN_TYPES[tr.typeId];
+        const totalLen = info.carCount * info.carLen;
+
+        if (tr.phase === "arriving") {
+          tr.speedKmh = 58;
+          tr.x += 340 * dt;
+          if (tr.x >= 160) {
+            tr.x = 160;
+            tr.phase = "stopped";
+            tr.speedKmh = 0;
+            tr.stopTimer = info.stopTime;
+            showToast(`${info.name} остановился у перрона (${info.stopTime.toFixed(1)}с на посадку)!`);
+          }
+        } else if (tr.phase === "stopped") {
+          tr.speedKmh = 0;
+          tr.stopTimer -= dt;
+          if (tr.stopTimer <= 0) {
+            tr.phase = "moving";
+            showToast(`${info.name} тронулся и набирает скорость! Держись крепче.`);
+          }
+        } else if (tr.phase === "moving") {
+          const boostMult = state.sapsanBoostTimer > 0 ? 1.12 : 1.0;
+          tr.speedKmh = Math.min(info.maxSpeed * boostMult, tr.speedKmh + info.accel * dt);
+          const worldStep = (tr.speedKmh * 1.35) * dt;
+          tr.x += worldStep;
+          if (state.onTrain) {
+            state.runDistance += (tr.speedKmh / 3.6) * dt;
+          }
+          // Extra-long surf duration (~45-60 seconds on train)
+          const endThreshold = state.onTrain ? WORLD_W + 4400 : WORLD_W + 500;
+          if (tr.x > endThreshold) {
+            tr.phase = "departing";
+          }
+        } else if (tr.phase === "departing") {
+          tr.x += 240 * dt;
+          if (state.onTrain) {
+            state.runDistance += (tr.speedKmh / 3.6) * dt;
+          }
+          const finishThreshold = state.onTrain ? WORLD_W + 5100 : WORLD_W + 950;
+          if (tr.x > finishThreshold) {
+            tr.phase = "idle";
+            tr.speedKmh = 0;
+            tr.x = -1400;
+            if (state.onTrain) {
+              const baseEarn = tr.typeId === "sapsan" ? 240 : tr.typeId === "locomotive" ? 170 : tr.typeId === "electric" ? 140 : 115;
+              const finalEarn = Math.round(baseEarn * (state.hasGoPro ? 1.35 : 1.0));
+              state.coins += finalEarn;
+              state.onTrain = false;
+              state.stance = "stand";
+              state.qteActive = false;
+              state.currentStationIndex = (state.currentStationIndex + 1) % state.stations.length;
+              const nextSt = state.stations[state.currentStationIndex];
+              state.pug.x = 520;
+              state.pug.y = PLATFORM_BOT - 12;
+              [state.dachshund, state.akita].forEach((f) => {
+                f.onTrain = false;
+                f.tethered = false;
+                if (f.joined && !f.knockedOut) {
+                  f.x = state.pug.x + (f.id === "dachshund" ? 36 : 74);
+                  f.y = PLATFORM_BOT - 8;
+                }
+              });
+              playTone(740, 0.16);
+              showToast(`Доехал до «${nextSt.name}»! +${finalEarn} монет за супер-зацеп.`);
+              syncControlBars();
+            }
+          }
+        }
+
+        // Player movement on station or along train roof
+        if (state.pug.knockedOut) {
+          state.pug.recoverTimer -= dt;
+          if (state.pug.recoverTimer <= 0) {
+            state.pug.knockedOut = false;
+            showToast("Мопс очухался и готов к делу.");
+          }
+        } else if (!state.onTrain) {
+          const canSprint = state.sprinting && state.stamina > 3 && moving;
+          const speed = canSprint ? 255 : 155;
+          if (canSprint) {
+            state.stamina = Math.max(0, state.stamina - 22 * dt);
+            if (Math.random() < 0.35) addParticles(state.pug.x, state.pug.y + 8, 1, "#94a3b8", 35);
+          } else {
+            state.stamina = Math.min(100, state.stamina + (state.thirst > 75 ? 9 : 16) * dt);
+          }
+
+          state.pug.x = Math.max(70, Math.min(WORLD_W - 70, state.pug.x + move.ix * speed * dt));
+          state.pug.y = Math.max(PLATFORM_TOP + 12, Math.min(SOUTH_PLATFORM_Y + 45, state.pug.y + move.iy * speed * dt));
+          if (Math.abs(move.ix) > 0.1) state.pug.facing = move.ix > 0 ? 1 : -1;
+          if (moving) state.pug.walkPhase += dt * (canSprint ? 16 : 10);
+
+          // Companions follow smoothly on station
+          [state.dachshund, state.akita].forEach((f, idx) => {
+            if (f.joined && !f.knockedOut && !f.onTrain) {
+              const targetX = state.pug.x - state.pug.facing * (38 + idx * 34);
+              const targetY = state.pug.y + (idx === 0 ? -12 : 14);
+              const dx = targetX - f.x;
+              const dy = targetY - f.y;
+              const d = Math.hypot(dx, dy);
+              if (d > 8) {
+                const fSpeed = Math.min(270, Math.max(120, d * 4.2));
+                f.x += (dx / d) * fSpeed * dt;
+                f.y += (dy / d) * fSpeed * dt;
+              }
+            }
+          });
+
+          // Doberman-Guard state machine: sleeping on bench -> patrolling without noticing -> chasing
+          state.dobermans.forEach((d) => {
+            if (!d.mode) d.mode = "patrol";
+            if (!d.modeTimer || d.modeTimer <= 0) {
+              const modes = ["sleeping", "patrol", "chase"];
+              const prev = d.mode;
+              let next = modes[Math.floor(Math.random() * modes.length)];
+              if (prev === next) next = prev === "sleeping" ? "patrol" : "sleeping";
+              d.mode = next;
+              d.modeTimer = next === "sleeping" ? 6.0 + Math.random() * 4.0 : next === "patrol" ? 5.5 + Math.random() * 4.0 : 4.5 + Math.random() * 3.0;
+            } else {
+              d.modeTimer -= dt;
+            }
+
+            if (d.yellCooldown && d.yellCooldown > 0) {
+              d.yellCooldown = Math.max(0, d.yellCooldown - dt);
+            }
+            if (d.stunnedTimer && d.stunnedTimer > 0) {
+              d.stunnedTimer = Math.max(0, d.stunnedTimer - dt);
+              d.chasing = false;
+              return;
+            }
+
+            const distPug = Math.hypot(state.pug.x - d.x, state.pug.y - d.y);
+            const crewAllBalaclava = state.hasBalaclava && (
+              (!state.dachshund.joined || state.dachshund.knockedOut || state.hasBalaclava) &&
+              (!state.akita.joined || state.akita.knockedOut || state.hasBalaclava)
+            );
+
+            // Wake up if Pug gets super close while sleeping
+            if (d.mode === "sleeping" && distPug < 75 && !crewAllBalaclava) {
+              d.mode = "chase";
+              d.modeTimer = 5.0;
+            }
+
+            const shouldChase = d.mode === "chase" && distPug < 220 && !crewAllBalaclava;
+            d.chasing = shouldChase;
+
+            if (d.mode === "sleeping") {
+              // Sit / rest near the nearest bench and sleep (Zzz)
+              const benchX = Math.max(d.patrolMin, Math.min(d.patrolMax, Math.round(d.x / 360) * 360 + 200));
+              d.x += (benchX - d.x) * Math.min(1, dt * 3);
+              d.y += (BENCH_ZONE.y + 8 - d.y) * Math.min(1, dt * 3);
+              if (Math.random() < 0.06) addParticles(d.x, d.y - 24, 1, "#93c5fd", 25);
+              return;
+            }
+
+            if (shouldChase) {
+              if (!d.yellCooldown || d.yellCooldown <= 0) {
+                d.yellCooldown = 2.6;
+                state.speechText = "Остановитесь, зацеперы!";
+                state.speechSpeaker = "pug";
+                state.speechTimer = 1.8;
+                addParticles(d.x, d.y - 22, 10, "#facc15", 95);
+                playTone(220, 0.14, "sawtooth", 0.06);
+              }
+              const ang = Math.atan2(state.pug.y - d.y, state.pug.x - d.x);
+              d.x += Math.cos(ang) * 148 * dt;
+              d.y += Math.sin(ang) * 148 * dt;
+              d.dir = Math.cos(ang) >= 0 ? 1 : -1;
+              if (distPug < 26) {
+                const fine = crewAllBalaclava ? 10 : 60;
+                state.coins = Math.max(0, state.coins - fine);
+                state.pug.x = Math.max(90, state.pug.x - 95);
+                d.x = d.patrolMin;
+                d.y = 265;
+                d.mode = "patrol";
+                d.modeTimer = 6.0;
+                addParticles(state.pug.x, state.pug.y - 16, 16, "#facc15", 130);
+                addParticles(state.pug.x, state.pug.y - 16, 10, "#ef4444", 110);
+                showToast(`Охранник-доберман: «Остановитесь, зацеперы!» Штраф -${fine} монет (звёзды в глазах).`, 3.6);
+              }
+            } else if (distPug < 42 && crewAllBalaclava) {
+              if (!d.yellCooldown || d.yellCooldown <= 0) {
+                d.yellCooldown = 3.2;
+                const fine = 10;
+                state.coins = Math.max(0, state.coins - fine);
+                addParticles(state.pug.x, state.pug.y - 14, 8, "#facc15", 80);
+                showToast(`Вся команда в балаклавах — палят едва-едва, списано всего -${fine} монеток.`, 2.8);
+              }
+            } else {
+              // Just walking around without noticing us
+              d.y += (265 - d.y) * Math.min(1, dt * 3);
+              d.x += d.dir * 66 * dt;
+              if (d.x > d.patrolMax) { d.x = d.patrolMax; d.dir = -1; }
+              if (d.x < d.patrolMin) { d.x = d.patrolMin; d.dir = 1; }
+            }
+          });
+        } else {
+          // On train: walk along roof/gangway, manage stances, speed & grip
+          state.trainOffset = Math.max(50, Math.min(totalLen - 60, state.trainOffset + move.ix * 145 * dt));
+          state.pug.x = tr.x + state.trainOffset;
+          state.pug.y = TRACK_CENTER_Y - 10;
+          if (Math.abs(move.ix) > 0.1) state.pug.facing = move.ix > 0 ? 1 : -1;
+          if (moving) state.pug.walkPhase += dt * 12;
+
+          // Speed & stance physics (experienced surfers don't drop instantly)
+          const spdRatio = tr.speedKmh / 225; // up to ~1.0 on Sapsan
+          const thirstPenalty = state.thirst > 70 ? 1.25 : 1.0;
+          const detectorFactor = state.detectorTier >= 2 ? 0.8 : 1.0;
+          const gloveFactor = 1.0 - getGlovesSlipReduction();
+          const boostFactor = state.sapsanBoostTimer > 0 ? 0.55 : 1.0;
+
+          let stanceDrainMult = 1.0;
+          if (state.stance === "crouch") stanceDrainMult = 0.65;
+          if (state.stance === "prone") stanceDrainMult = 0.35;
+
+          const baseDrain = (1.8 + spdRatio * 10.5) * stanceDrainMult * thirstPenalty * detectorFactor * gloveFactor * boostFactor;
+          if (tr.speedKmh > 10) {
+            state.grip = Math.max(0, state.grip - baseDrain * dt);
+          } else {
+            state.grip = Math.min(100, state.grip + 18 * dt);
+          }
+
+          // Wind / gust QTE prompts at speed
+          if (tr.speedKmh > 80 && !state.qteActive && Math.random() < (0.35 + spdRatio * 0.9) * dt) {
+            state.qteActive = true;
+            state.qteTimer = Math.max(1.25, 2.2 - spdRatio * 0.75);
+          }
+          if (state.qteActive) {
+            state.qteTimer -= dt;
+            if (state.qteTimer <= 0) {
+              state.qteActive = false;
+              const gustHit = (14 + spdRatio * 18) * gloveFactor * (state.stance === "prone" ? 0.45 : state.stance === "crouch" ? 0.7 : 1.0);
+              state.grip = Math.max(0, state.grip - gustHit);
+              state.shakeMag = Math.max(state.shakeMag, 5);
+            }
+          }
+
+          if (state.grip <= 0) {
+            handlePugFall(tr.speedKmh);
+          }
+
+          // Rail grind boost along roof
+          if (state.railGrindActive) {
+            state.trainOffset = Math.min(totalLen - 60, state.trainOffset + 220 * dt);
+            state.pug.x = tr.x + state.trainOffset;
+            state.grip = Math.min(100, state.grip + 14 * dt);
+            if (Math.random() < 0.5) addParticles(state.pug.x, TRACK_CENTER_Y + 6, 2, "#38bdf8", 80);
+            if (state.trainOffset >= totalLen - 65) {
+              state.railGrindActive = false;
+              const grindReward = (25 + state.comboCount * 5) * (state.hasGoPro ? 1.35 : 1.0);
+              state.coins += Math.round(grindReward);
+              showToast(`🛹 Прокат по всей крыше! +${Math.round(grindReward)} монет.`);
+            }
+          }
+
+          // Whistle pull: pulls nearby friends closer on train & restores grip
+          if (state.whistleTimer > 0) {
+            [state.dachshund, state.akita].forEach((f) => {
+              if (f.joined && !f.knockedOut) {
+                f.onTrain = true;
+                f.grip = Math.min(100, f.grip + 35 * dt);
+              }
+            });
+          }
+
+          // Collectible roof sparks for combo & coins
+          state.sparks.forEach((sp) => {
+            if (sp.collected) return;
+            const sx = tr.x + sp.x;
+            const sy = sp.y;
+            if (Math.hypot(state.pug.x - sx, state.pug.y - sy) < 34) {
+              sp.collected = true;
+              state.sparksCollected++;
+              state.comboCount++;
+              state.comboTimer = 5.5;
+              const pts = Math.round((15 + state.comboCount * 5) * (state.hasGoPro ? 1.35 : 1.0));
+              state.coins += pts;
+              state.grip = Math.min(100, state.grip + 10);
+              addParticles(sx, sy, 14, "#facc15", 120);
+              playTone(840 + Math.min(400, state.comboCount * 45), 0.1, "triangle", 0.07);
+              showToast(`⚡ Искра x${state.comboCount}! +${pts} монет.`);
+            }
+          });
+          if (state.sparks.every((s) => s.collected)) {
+            state.sparks.forEach((s) => { s.collected = false; });
+          }
+
+          // Friends on train: experienced surfers hold well, tethered friends are safe
+          [state.dachshund, state.akita].forEach((f, idx) => {
+            if (f.joined && f.onTrain && !f.knockedOut) {
+              f.x = tr.x + Math.max(40, Math.min(totalLen - 40, state.trainOffset - (idx + 1) * 44));
+              f.y = TRACK_CENTER_Y - 8;
+
+              if (state.tetherActiveTimer > 0 || f.tethered) {
+                f.grip = Math.min(100, f.grip + 25 * dt);
+                return;
+              }
+              const fStanceMult = state.stance === "prone" ? 0.4 : state.stance === "crouch" ? 0.7 : 1.0;
+              const fDrain = (1.1 + spdRatio * 6.2) * fStanceMult * gloveFactor * (f.id === "akita" ? 1.15 : 0.92);
+              if (tr.speedKmh > 25) {
+                f.grip = Math.max(0, f.grip - fDrain * dt);
+              }
+              if (f.grip <= 0) {
+                handleCompanionFall(f, tr.speedKmh);
+              }
+            }
+          });
+
+          // Occasional rope pantograph stunt by Dachshund or Akita on trains with pantograph
+          if (state.friendPantoTimer > 0) {
+            state.friendPantoTimer = Math.max(0, state.friendPantoTimer - dt);
+          } else {
+            state.friendPantoCooldown -= dt;
+            if (state.friendPantoCooldown <= 0 && info.hasPantograph && tr.speedKmh > 35) {
+              const activeFriends = ["dachshund", "akita"].filter(
+                (id) => state[id].joined && state[id].onTrain && !state[id].knockedOut
+              );
+              if (activeFriends.length > 0) {
+                const chosenId = activeFriends[Math.floor(Math.random() * activeFriends.length)];
+                const chosenFriend = state[chosenId];
+                state.friendPantoCooldown = 11 + Math.random() * 6;
+                state.friendPantoTimer = 1.4;
+                state.friendPantoSpeaker = chosenId;
+                state.pantographShakeTimer = 1.2;
+                state.shakeMag = Math.max(state.shakeMag, 8);
+                state.speechText = "Пацаны, смотрите, как я умею!";
+                state.speechSpeaker = chosenId;
+                state.speechTimer = 2.8;
+                playTone(760, 0.12);
+                addParticles(chosenFriend.x + 12, TRACK_CENTER_Y - 36, 20, "#facc15", 150);
+
+                // Rare chance (~6%) of fatal surge killing the friend -> -$200
+                if (Math.random() < 0.06) {
+                  triggerSurgeDeath(chosenId);
+                } else {
+                  showToast(`${chosenFriend.name} шатает пантограф верёвкой: «Пацаны, смотрите, как я умею!»`, 3.2);
+                }
+              } else {
+                state.friendPantoCooldown = 6;
+              }
+            }
+          }
+        }
+
+        // Update particles
+        for (let i = state.particles.length - 1; i >= 0; i--) {
+          const p = state.particles[i];
+          p.x += p.vx * dt;
+          p.y += p.vy * dt;
+          p.life -= dt;
+          if (p.life <= 0) state.particles.splice(i, 1);
+        }
+
+        // Smooth camera follow locked onto Pug (follows along train corridor too)
+        const viewW = canvas.width / (window.devicePixelRatio || 1);
+        const viewH = canvas.height / (window.devicePixelRatio || 1);
+        const maxCamX = state.onTrain ? Math.max(WORLD_W - viewW, tr.x + totalLen - viewW + 220) : Math.max(0, WORLD_W - viewW);
+        const targetCamX = Math.max(0, Math.min(maxCamX, state.pug.x - viewW * 0.36));
+        const targetCamY = Math.max(0, Math.min(Math.max(0, WORLD_H - viewH), state.pug.y - viewH * 0.52));
+        state.camera.x += (targetCamX - state.camera.x) * Math.min(1, dt * 11);
+        state.camera.y += (targetCamY - state.camera.y) * Math.min(1, dt * 11);
+
+        syncControlBars();
+        updateUI();
+      }
+
+      function updateUI() {
+        const stamPct = Math.max(0, Math.min(100, Math.round(state.stamina)));
+        const gripPct = Math.max(0, Math.min(100, Math.round(state.grip)));
+        const thirstPct = Math.max(0, Math.min(100, Math.round(state.thirst)));
+
+        document.getElementById("hudCoins").textContent = `🪙 ${state.coins}`;
+        document.getElementById("hudThirstText").textContent = `🥤 ${state.sodas} • 🦴 ${state.snacks}`;
+        document.getElementById("valStamina").textContent = `${stamPct}%`;
+        document.getElementById("valGrip").textContent = `${gripPct}%`;
+        document.getElementById("valThirst").textContent = `${thirstPct}%`;
+        document.getElementById("hudCrew").textContent = `Команда: ${getCrewCount()}/3`;
+        document.getElementById("hudSpeed").textContent = `${Math.round(state.train.speedKmh)} км/ч`;
+
+        document.getElementById("barStamina").style.width = `${stamPct}%`;
+        document.getElementById("barGrip").style.width = `${gripPct}%`;
+        document.getElementById("barThirst").style.width = `${thirstPct}%`;
+
+        const qteEl = document.getElementById("qteBox");
+        if (state.onTrain && state.qteActive) {
+          qteEl.style.display = "block";
+          qteEl.textContent = `✊ ВЕТЕР! ДЕРЖИ ХВАТ (${state.qteTimer.toFixed(1)}с)`;
+        } else {
+          qteEl.style.display = "none";
+        }
+
+        const tr = state.train;
+        const info = TRAIN_TYPES[tr.typeId];
+        const curSt = state.stations[state.currentStationIndex] || state.stations[0];
+        let topText = `${curSt.name} • Зови друзей или жми «Подать состав»`;
+        if (tr.phase === "arriving") topText = `🚆 Подходит ${info.name} • ${Math.round(tr.speedKmh)} км/ч`;
+        else if (tr.phase === "stopped") topText = `🛑 ${info.name} стоит (${tr.stopTimer.toFixed(1)}с) — жми Зацепиться!`;
+        else if (tr.phase === "moving" || tr.phase === "departing") {
+          topText = `${state.onTrain ? "⚡ ЗАЦЕП" : "🚆 В ПУТИ"}: ${info.name} • ${Math.round(tr.speedKmh)} км/ч`;
+        }
+        document.getElementById("topStatus").textContent = topText;
+      }
+
+      // Detailed 2D procedural drawing
+      function drawBalaclava(ctx, x, y, r, color = "#1e293b") {
+        ctx.save();
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.lineWidth = 1.6;
+        ctx.strokeStyle = "#0f172a";
+        ctx.stroke();
+        // Eye slit
+        ctx.fillStyle = "#fef08a";
+        ctx.fillRect(x - r * 0.45, y - r * 0.25, r * 0.9, r * 0.34);
+        ctx.restore();
+      }
+
+      function drawPug(ctx, x, y, facing, walkPhase, stance, knockedOut, hasBalaclava, gloveTier, boost) {
+        ctx.save();
+        ctx.translate(x, y);
+        if (knockedOut) {
+          ctx.rotate(-Math.PI / 2);
+        }
+        const scaleY = stance === "prone" ? 0.56 : stance === "crouch" ? 0.76 : 1.04;
+        const bob = Math.sin(walkPhase) * (stance === "stand" ? 2.5 : 1.2);
+        ctx.scale(facing * 1.12, scaleY * 1.12);
+
+        // Shadow
+        ctx.fillStyle = "rgba(0,0,0,0.35)";
+        ctx.beginPath();
+        ctx.ellipse(0, 12, 16, 6, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Curled tail
+        ctx.strokeStyle = "#292524";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(-15, -2 + bob * 0.5, 5, 0, Math.PI * 1.6);
+        ctx.stroke();
+
+        // Paws / gloves
+        const legSwing = Math.sin(walkPhase) * 6;
+        ctx.fillStyle = gloveTier > 0 ? "#f59e0b" : "#d6b48a";
+        ctx.beginPath();
+        ctx.ellipse(-7 + legSwing, 9, 5.5, 3.8, 0, 0, Math.PI * 2);
+        ctx.ellipse(7 - legSwing, 9, 5.5, 3.8, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "#1c1917";
+        ctx.lineWidth = 1.4;
+        ctx.stroke();
+
+        // Jacket / Torso
+        ctx.fillStyle = boost ? "#0284c7" : "#334155";
+        ctx.beginPath();
+        ctx.roundRect(-13, -6 + bob * 0.5, 26, 15, 6);
+        ctx.fill();
+        ctx.strokeStyle = "#0f172a";
+        ctx.lineWidth = 1.6;
+        ctx.stroke();
+
+        // Glowing chest reactor
+        ctx.fillStyle = boost ? "#7dd3fc" : "#38bdf8";
+        ctx.beginPath();
+        ctx.arc(4, 1 + bob * 0.5, 3.6, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Head (fawn pug + dark muzzle + wrinkles + cap)
+        const hx = 10;
+        const hy = -10 + bob;
+        ctx.fillStyle = "#e2be93";
+        ctx.beginPath();
+        ctx.arc(hx, hy, 10.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "#1c1917";
+        ctx.lineWidth = 1.6;
+        ctx.stroke();
+
+        // Floppy dark pug ear
+        ctx.fillStyle = "#27272a";
+        ctx.beginPath();
+        ctx.ellipse(hx - 2, hy - 5, 4, 6.5, -0.4, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Snout & wrinkles
+        ctx.fillStyle = "#292524";
+        ctx.beginPath();
+        ctx.ellipse(hx + 7, hy + 1, 5.5, 4.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "#44403c";
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(hx + 2, hy - 5);
+        ctx.lineTo(hx + 7, hy - 5);
+        ctx.moveTo(hx + 2, hy - 2.5);
+        ctx.lineTo(hx + 7, hy - 2.5);
+        ctx.stroke();
+
+        // Eye
+        ctx.fillStyle = "#ffffff";
+        ctx.beginPath();
+        ctx.arc(hx + 3.5, hy - 2.5, 2.7, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#09090b";
+        ctx.beginPath();
+        ctx.arc(hx + 4.2, hy - 2.5, 1.4, 0, Math.PI * 2);
+        ctx.fill();
+
+        if (hasBalaclava) {
+          drawBalaclava(ctx, hx, hy, 11.2, "#111827");
+        }
+
+        // Surfer red cap
+        ctx.fillStyle = "#dc2626";
+        ctx.beginPath();
+        ctx.arc(hx - 1, hy - 6.5, 9.5, Math.PI, 0);
+        ctx.fill();
+        ctx.fillRect(hx + 2, hy - 7.5, 11, 3);
+        ctx.strokeStyle = "#7f1d1d";
+        ctx.lineWidth = 1.4;
+        ctx.stroke();
+
+        ctx.restore();
+      }
+
+      function drawDachshund(ctx, x, y, hasBalaclava, tethered) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.fillStyle = "rgba(0,0,0,0.3)";
+        ctx.beginPath();
+        ctx.ellipse(0, 9, 20, 4.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Long body
+        ctx.fillStyle = "#9a3412";
+        ctx.beginPath();
+        ctx.roundRect(-18, -3, 34, 10, 5);
+        ctx.fill();
+        ctx.strokeStyle = "#431407";
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        // Short legs
+        ctx.fillRect(-13, 6, 4, 5);
+        ctx.fillRect(9, 6, 4, 5);
+
+        // Tail
+        ctx.strokeStyle = "#7c2d12";
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(-18, 0);
+        ctx.lineTo(-25, -5);
+        ctx.stroke();
+
+        // Head & long ear
+        ctx.fillStyle = "#b45309";
+        ctx.beginPath();
+        ctx.arc(16, -3, 7.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = "#7c2d12";
+        ctx.beginPath();
+        ctx.ellipse(14, 2, 3.5, 7, 0.25, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Eye
+        ctx.fillStyle = "#ffffff";
+        ctx.beginPath();
+        ctx.arc(18.5, -4.5, 2.2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#09090b";
+        ctx.beginPath();
+        ctx.arc(19, -4.5, 1.2, 0, Math.PI * 2);
+        ctx.fill();
+
+        if (hasBalaclava) {
+          drawBalaclava(ctx, 16, -3, 8.2, "#1e293b");
+        }
+        if (tethered) {
+          ctx.strokeStyle = "#facc15";
+          ctx.lineWidth = 2;
+          ctx.strokeRect(-19, -4, 36, 12);
+        }
+        ctx.restore();
+      }
+
+      function drawAkita(ctx, x, y, hasBalaclava, tethered) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.fillStyle = "rgba(0,0,0,0.34)";
+        ctx.beginPath();
+        ctx.ellipse(0, 13, 18, 6, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Curled fluffy tail
+        ctx.fillStyle = "#ea580c";
+        ctx.beginPath();
+        ctx.arc(-16, -5, 6.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "#431407";
+        ctx.lineWidth = 1.6;
+        ctx.stroke();
+
+        // Stout muscular body
+        ctx.fillStyle = "#f97316";
+        ctx.beginPath();
+        ctx.roundRect(-14, -6, 28, 16, 7);
+        ctx.fill();
+        ctx.stroke();
+
+        // Cream chest patch
+        ctx.fillStyle = "#ffedd5";
+        ctx.beginPath();
+        ctx.arc(10, 4, 6, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Legs
+        ctx.fillStyle = "#ea580c";
+        ctx.fillRect(-10, 9, 5.5, 6);
+        ctx.fillRect(5, 9, 5.5, 6);
+
+        // Broad Akita head + pointed triangular ears
+        const hx = 12;
+        const hy = -9;
+        ctx.fillStyle = "#f97316";
+        ctx.beginPath();
+        ctx.arc(hx, hy, 9.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // Pointed ears
+        ctx.beginPath();
+        ctx.moveTo(hx - 6, hy - 5);
+        ctx.lineTo(hx - 8, hy - 15);
+        ctx.lineTo(hx - 1, hy - 8);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(hx + 1, hy - 7);
+        ctx.lineTo(hx + 4, hy - 16);
+        ctx.lineTo(hx + 7, hy - 6);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Muzzle & eyes
+        ctx.fillStyle = "#fff7ed";
+        ctx.beginPath();
+        ctx.ellipse(hx + 6, hy + 2, 4.5, 3.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#18181b";
+        ctx.beginPath();
+        ctx.arc(hx + 9.5, hy + 1.5, 1.8, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Clear eyes
+        ctx.fillStyle = "#ffffff";
+        ctx.beginPath();
+        ctx.arc(hx + 3.5, hy - 2.5, 2.4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#09090b";
+        ctx.beginPath();
+        ctx.arc(hx + 4.2, hy - 2.5, 1.3, 0, Math.PI * 2);
+        ctx.fill();
+
+        if (hasBalaclava) {
+          drawBalaclava(ctx, hx, hy, 10.2, "#0f172a");
+        }
+        if (tethered) {
+          ctx.strokeStyle = "#38bdf8";
+          ctx.lineWidth = 2.2;
+          ctx.strokeRect(-15, -7, 30, 18);
+        }
+        ctx.restore();
+      }
+
+      function drawLabrador(ctx, x, y) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.fillStyle = "#eab308";
+        ctx.beginPath();
+        ctx.roundRect(-13, -6, 26, 17, 7);
+        ctx.fill();
+        ctx.strokeStyle = "#422006";
+        ctx.lineWidth = 1.6;
+        ctx.stroke();
+
+        // Shop apron
+        ctx.fillStyle = "#f8fafc";
+        ctx.fillRect(-9, 1, 18, 9);
+
+        // Head & floppy ear
+        ctx.fillStyle = "#facc15";
+        ctx.beginPath();
+        ctx.arc(0, -13, 9, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = "#ca8a04";
+        ctx.beginPath();
+        ctx.ellipse(-7, -11, 3.2, 6, 0.2, 0, Math.PI * 2);
+        ctx.ellipse(7, -11, 3.2, 6, -0.2, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Eyes & nose
+        ctx.fillStyle = "#09090b";
+        ctx.beginPath();
+        ctx.arc(-3.2, -14, 1.6, 0, Math.PI * 2);
+        ctx.arc(3.2, -14, 1.6, 0, Math.PI * 2);
+        ctx.arc(0, -10.5, 2.2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      function drawGuard(ctx, g) {
+        ctx.save();
+        ctx.translate(g.x, g.y);
+        ctx.fillStyle = "rgba(0,0,0,0.35)";
+        ctx.beginPath();
+        ctx.ellipse(0, 14, 14, 5, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Uniform torso
+        ctx.fillStyle = "#1e3a8a";
+        ctx.beginPath();
+        ctx.roundRect(-11, -8, 22, 20, 5);
+        ctx.fill();
+        ctx.strokeStyle = "#0f172a";
+        ctx.lineWidth = 1.6;
+        ctx.stroke();
+
+        // Head & cap
+        ctx.fillStyle = "#fed7aa";
+        ctx.beginPath();
+        ctx.arc(0, -14, 8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = "#172554";
+        ctx.fillRect(-9, -22, 18, 5);
+        ctx.fillStyle = "#09090b";
+        ctx.fillRect(-4, -15, 2, 2);
+        ctx.fillRect(2, -15, 2, 2);
+        ctx.restore();
+      }
+
+      function drawDoberman(ctx, d) {
+        ctx.save();
+        ctx.translate(d.x, d.y);
+        if (d.mode === "sleeping") {
+          ctx.font = "bold 11px system-ui, sans-serif";
+          ctx.fillStyle = "#bae6fd";
+          ctx.fillText("zZz", -8, -26);
+        }
+        ctx.scale(d.dir, 1);
+        ctx.fillStyle = "rgba(0,0,0,0.35)";
+        ctx.beginPath();
+        ctx.ellipse(0, 12, 17, 5, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Sleek black & tan body
+        ctx.fillStyle = "#18181b";
+        ctx.beginPath();
+        ctx.roundRect(-15, -5, 30, 12, 6);
+        ctx.fill();
+        ctx.strokeStyle = "#09090b";
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        // Tan chest & paws
+        ctx.fillStyle = "#d97706";
+        ctx.beginPath();
+        ctx.arc(10, 2, 4.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillRect(-11, 6, 3.5, 6);
+        ctx.fillRect(8, 6, 3.5, 6);
+
+        // Head & erect ears
+        ctx.fillStyle = "#18181b";
+        ctx.beginPath();
+        ctx.ellipse(14, -7, 8, 5, -0.15, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(10, -10);
+        ctx.lineTo(8, -19);
+        ctx.lineTo(14, -11);
+        ctx.fill();
+
+        // Guard cap badge on doberman-guard
+        ctx.fillStyle = "#1e3a8a";
+        ctx.fillRect(8, -14, 11, 4);
+        ctx.fillStyle = "#facc15";
+        ctx.fillRect(15, -13, 3, 2);
+
+        // Red/amber eye if chasing
+        ctx.fillStyle = d.chasing ? "#ef4444" : "#f59e0b";
+        ctx.beginPath();
+        ctx.arc(16, -8, 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      function drawTrain(ctx) {
+        const tr = state.train;
+        if (tr.phase === "idle") return;
+        const info = TRAIN_TYPES[tr.typeId];
+        for (let i = 0; i < info.carCount; i++) {
+          const cx = tr.x + i * info.carLen;
+          const cy = TRACK_CENTER_Y - 26;
+          const isHead = i === info.carCount - 1;
+
+          // Car body
+          ctx.save();
+          ctx.fillStyle = info.color;
+          ctx.beginPath();
+          if (tr.typeId === "sapsan" && isHead) {
+            ctx.moveTo(cx, cy);
+            ctx.lineTo(cx + info.carLen - 34, cy);
+            ctx.quadraticCurveTo(cx + info.carLen + 14, cy + 26, cx + info.carLen - 34, cy + 52);
+            ctx.lineTo(cx, cy + 52);
+            ctx.closePath();
+          } else {
+            ctx.roundRect(cx, cy, info.carLen - 6, 52, 7);
+          }
+          ctx.fill();
+          ctx.lineWidth = 2;
+          ctx.strokeStyle = "#0f172a";
+          ctx.stroke();
+
+          // Stripe & windows
+          ctx.fillStyle = info.accent;
+          ctx.fillRect(cx + 6, cy + 22, info.carLen - 20, 6);
+
+          if (tr.typeId === "electric" || tr.typeId === "sapsan") {
+            ctx.fillStyle = "#bae6fd";
+            for (let w = 16; w < info.carLen - 38; w += 28) {
+              ctx.fillRect(cx + w, cy + 9, 18, 10);
+            }
+          } else if (tr.typeId === "cargo") {
+            ctx.strokeStyle = "rgba(255,255,255,0.22)";
+            for (let r = 24; r < info.carLen - 24; r += 26) {
+              ctx.beginPath();
+              ctx.moveTo(cx + r, cy + 5);
+              ctx.lineTo(cx + r, cy + 47);
+              ctx.stroke();
+            }
+          }
+
+          // Pantograph on electric / sapsan
+          if (info.hasPantograph && i === 1) {
+            const pX = cx + info.carLen * 0.5 + (state.pantographShakeTimer > 0 ? Math.sin(state.time * 48) * 14 : 0);
+            const pY = cy - 18;
+            ctx.strokeStyle = "#cbd5e1";
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.moveTo(pX - 16, cy);
+            ctx.lineTo(pX, pY);
+            ctx.lineTo(pX + 16, cy);
+            ctx.moveTo(pX - 18, pY);
+            ctx.lineTo(pX + 18, pY);
+            ctx.stroke();
+          }
+
+          // Wheels
+          ctx.fillStyle = "#334155";
+          ctx.beginPath();
+          ctx.arc(cx + 34, cy + 54, 7, 0, Math.PI * 2);
+          ctx.arc(cx + info.carLen - 42, cy + 54, 7, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+
+        // Draw tether line if active
+        if (state.onTrain && state.tetherActiveTimer > 0) {
+          ctx.save();
+          ctx.strokeStyle = "#facc15";
+          ctx.lineWidth = 2;
+          ctx.setLineDash([5, 4]);
+          [state.dachshund, state.akita].forEach((f) => {
+            if (f.joined && f.onTrain && !f.knockedOut) {
+              ctx.beginPath();
+              ctx.moveTo(state.pug.x, state.pug.y);
+              ctx.lineTo(f.x, f.y);
+              ctx.stroke();
+            }
+          });
+          ctx.restore();
+        }
+      }
+
+      function drawStation(ctx) {
+        // Ground & station platforms
+        ctx.fillStyle = "#1e293b";
+        const spanW = Math.max(WORLD_W, state.camera.x + (canvas.width / (window.devicePixelRatio || 1)) + 400);
+        ctx.fillRect(0, 0, spanW, WORLD_H);
+
+        // North platform
+        ctx.fillStyle = "#475569";
+        ctx.fillRect(0, 80, spanW, PLATFORM_BOT - 80);
+        // Yellow safety edge
+        ctx.fillStyle = "#eab308";
+        ctx.fillRect(0, PLATFORM_BOT - 10, spanW, 10);
+
+        // Track bed & sleepers
+        ctx.fillStyle = "#292524";
+        ctx.fillRect(0, PLATFORM_BOT, spanW, SOUTH_PLATFORM_Y - PLATFORM_BOT);
+        ctx.fillStyle = "#57534e";
+        for (let sx = 0; sx < spanW; sx += 22) {
+          ctx.fillRect(sx, PLATFORM_BOT + 12, 8, SOUTH_PLATFORM_Y - PLATFORM_BOT - 24);
+        }
+        // Rails
+        ctx.strokeStyle = "#94a3b8";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(0, TRACK_CENTER_Y - 24);
+        ctx.lineTo(spanW, TRACK_CENTER_Y - 24);
+        ctx.moveTo(0, TRACK_CENTER_Y + 28);
+        ctx.lineTo(spanW, TRACK_CENTER_Y + 28);
+        ctx.stroke();
+
+        // South platform
+        ctx.fillStyle = "#334155";
+        ctx.fillRect(0, SOUTH_PLATFORM_Y, spanW, WORLD_H - SOUTH_PLATFORM_Y);
+
+        // Labrador shop kiosk
+        ctx.fillStyle = "#3b2f2f";
+        ctx.fillRect(SHOP_ZONE.x, SHOP_ZONE.y, SHOP_ZONE.w, SHOP_ZONE.h);
+        ctx.strokeStyle = "#f59e0b";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(SHOP_ZONE.x, SHOP_ZONE.y, SHOP_ZONE.w, SHOP_ZONE.h);
+        ctx.fillStyle = "#fbbf24";
+        ctx.font = "bold 12px system-ui, sans-serif";
+        ctx.fillText("ЛАВКА ЛАБРАДОРА", SHOP_ZONE.x + 32, SHOP_ZONE.y + 22);
+        drawLabrador(ctx, SHOP_ZONE.x + SHOP_ZONE.w / 2, SHOP_ZONE.y + 54);
+
+        // Station benches & lanterns
+        for (let bx = 560; bx < WORLD_W - 200; bx += 360) {
+          ctx.fillStyle = "#92400e";
+          ctx.fillRect(bx, BENCH_ZONE.y, 64, 14);
+          ctx.fillStyle = "#f8fafc";
+          ctx.beginPath();
+          ctx.arc(bx + 80, PLATFORM_TOP + 18, 5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      function render() {
+        const dpr = window.devicePixelRatio || 1;
+        const w = canvas.width / dpr;
+        const h = canvas.height / dpr;
+
+        ctx.save();
+        ctx.scale(dpr, dpr);
+        const shakeX = state.shakeMag > 0 ? (Math.random() - 0.5) * state.shakeMag : 0;
+        const shakeY = state.shakeMag > 0 ? (Math.random() - 0.5) * state.shakeMag : 0;
+        ctx.translate(-state.camera.x + shakeX, -state.camera.y + shakeY);
+
+        drawStation(ctx);
+        drawTrain(ctx);
+
+        state.dobermans.forEach((d) => drawDoberman(ctx, d));
+
+        // Friends
+        if (state.dachshund.spawned || state.dachshund.joined || state.dachshund.knockedOut) {
+          drawDachshund(ctx, state.dachshund.x, state.dachshund.y, state.hasBalaclava && state.dachshund.joined, state.dachshund.tethered);
+        }
+        if (state.akita.spawned || state.akita.joined || state.akita.knockedOut) {
+          drawAkita(ctx, state.akita.x, state.akita.y, state.hasBalaclava && state.akita.joined, state.akita.tethered);
+        }
+
+        // Main hero Pug + clear marker tag
+        drawPug(
+          ctx,
+          state.pug.x,
+          state.pug.y,
+          state.pug.facing,
+          state.pug.walkPhase,
+          state.stance,
+          state.pug.knockedOut,
+          state.hasBalaclava,
+          state.gloveTier,
+          state.sapsanBoostTimer > 0
+        );
+        ctx.save();
+        ctx.font = "bold 10px system-ui, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillStyle = "#fde047";
+        ctx.fillText("МОПС", state.pug.x, state.pug.y - 30);
+        ctx.restore();
+
+        // Speech caption above speaker (Pug, Dachshund, or Akita)
+        if (state.speechTimer > 0 && state.speechText) {
+          let anchorX = state.pug.x;
+          let anchorY = state.pug.y;
+          if (state.speechSpeaker === "dachshund" && state.dachshund.joined) {
+            anchorX = state.dachshund.x;
+            anchorY = state.dachshund.y;
+          } else if (state.speechSpeaker === "akita" && state.akita.joined) {
+            anchorX = state.akita.x;
+            anchorY = state.akita.y;
+          }
+          ctx.save();
+          ctx.font = "bold 12px system-ui, sans-serif";
+          const tw = ctx.measureText(state.speechText).width + 16;
+          const bx = anchorX - tw / 2;
+          const by = anchorY - 46;
+          ctx.fillStyle = "rgba(15, 23, 42, 0.92)";
+          ctx.beginPath();
+          ctx.roundRect(bx, by, tw, 22, 7);
+          ctx.fill();
+          ctx.strokeStyle = "#fbbf24";
+          ctx.lineWidth = 1.4;
+          ctx.stroke();
+          ctx.fillStyle = "#fef08a";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(state.speechText, anchorX, by + 11);
+          ctx.restore();
+        }
+
+        // Collectible sparks anchored accurately on the train roof
+        if (state.train.phase !== "idle") {
+          const roofY = TRACK_CENTER_Y - 28;
+          state.sparks.forEach((sp, idx) => {
+            if (sp.collected) return;
+            const sx = state.train.x + 120 + idx * 190;
+            const sy = roofY + Math.sin(state.time * 6 + sp.id) * 3;
+            ctx.save();
+            ctx.fillStyle = "#facc15";
+            ctx.beginPath();
+            ctx.arc(sx, sy, 6, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = "#fef08a";
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+            ctx.restore();
+          });
+        }
+
+        // Little stars when Pug is knocked out or Doberman-Guard is stunned
+        if (state.pug.knockedOut) {
+          for (let i = 0; i < 4; i++) {
+            const ang = state.time * 5 + (i * Math.PI) / 2;
+            const stX = state.pug.x + Math.cos(ang) * 18;
+            const stY = state.pug.y - 24 + Math.sin(ang) * 7;
+            ctx.fillStyle = "#facc15";
+            ctx.beginPath();
+            ctx.arc(stX, stY, 3.2, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+        state.dobermans.forEach((d) => {
+          if (d.stunnedTimer && d.stunnedTimer > 0) {
+            for (let i = 0; i < 3; i++) {
+              const ang = state.time * 6 + (i * Math.PI * 2) / 3;
+              const stX = d.x + Math.cos(ang) * 16;
+              const stY = d.y - 24 + Math.sin(ang) * 6;
+              ctx.fillStyle = "#fef08a";
+              ctx.beginPath();
+              ctx.arc(stX, stY, 3, 0, Math.PI * 2);
+              ctx.fill();
+            }
+          }
+        });
+
+        // Eating or drinking animation on Pug, Dachshund, or Akita
+        if (state.consumeAnim && state.consumeAnim.timer > 0 && state.consumeAnim.who) {
+          let ax = state.pug.x;
+          let ay = state.pug.y;
+          if (state.consumeAnim.who === "dachshund") {
+            ax = state.dachshund.x;
+            ay = state.dachshund.y;
+          } else if (state.consumeAnim.who === "akita") {
+            ax = state.akita.x;
+            ay = state.akita.y;
+          }
+          const prog = 1 - (state.consumeAnim.timer / state.consumeAnim.duration);
+          const tilt = Math.sin(prog * Math.PI * 5) * 0.45;
+          const lift = Math.abs(Math.sin(prog * Math.PI * 4)) * 6;
+          ctx.save();
+          ctx.translate(ax + 12, ay - 14 - lift);
+          ctx.rotate(tilt);
+          if (state.consumeAnim.kind === "soda") {
+            ctx.fillStyle = "#0ea5e9";
+            ctx.fillRect(-4, -7, 8, 13);
+            ctx.fillStyle = "#e0f2fe";
+            ctx.fillRect(-3, -4, 6, 4);
+            ctx.strokeStyle = "#f8fafc";
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(1, -7);
+            ctx.lineTo(4, -12);
+            ctx.stroke();
+          } else {
+            ctx.fillStyle = "#fde68a";
+            ctx.beginPath();
+            ctx.roundRect(-6, -4, 12, 8, 3);
+            ctx.fill();
+            ctx.fillStyle = "#d97706";
+            ctx.beginPath();
+            ctx.arc(-6, -4, 3, 0, Math.PI * 2);
+            ctx.arc(-6, 4, 3, 0, Math.PI * 2);
+            ctx.arc(6, -4, 3, 0, Math.PI * 2);
+            ctx.arc(6, 4, 3, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.restore();
+        }
+
+        // Particles
+        state.particles.forEach((p) => {
+          ctx.globalAlpha = Math.max(0, p.life / p.maxLife);
+          ctx.fillStyle = p.color;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+          ctx.fill();
+        });
+        ctx.globalAlpha = 1;
+
+        ctx.restore();
+      }
+
+      function resizeCanvas() {
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = Math.max(1, Math.floor(window.innerWidth * dpr));
+        canvas.height = Math.max(1, Math.floor(window.innerHeight * dpr));
+      }
+
+      window.addEventListener("resize", resizeCanvas);
+      resizeCanvas();
+
+      let lastTime = performance.now();
+      function loop(now) {
+        const dt = Math.min(0.05, (now - lastTime) / 1000);
+        lastTime = now;
+        if (state.started) {
+          update(dt);
+        }
+        render();
+        requestAnimationFrame(loop);
+      }
+      requestAnimationFrame(loop);
+
+      const startBtn = document.getElementById("btnStartStation");
+      if (startBtn) {
+        startBtn.addEventListener("click", function (ev) {
+          window.startGameNow(ev);
+        });
+      }
+    })();
+  </script>
+</body>
+</html>
